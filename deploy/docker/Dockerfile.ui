@@ -1,0 +1,17 @@
+FROM oven/bun:1-alpine AS builder
+WORKDIR /app
+COPY source2docui/package.json source2docui/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY source2docui/ .
+# Limit Node.js memory usage during build
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+RUN bun run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "server.js"]

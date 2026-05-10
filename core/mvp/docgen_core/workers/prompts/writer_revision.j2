@@ -1,0 +1,31 @@
+Rewrite documentation page (attempt {{ attempt }}):
+Title: {{ title }}
+Description: {{ description }}
+
+Repository dominant language: {{ dominant_language }}
+- Stay within {{ dominant_language }} idioms, file extensions, and ecosystem terminology.
+- Do not introduce concepts from a different language stack to "fill in" gaps.
+
+PREVIOUS VERSION HAD ISSUES:
+Score: {{ review.score }}/10
+{% if review.has_hallucinations %}
+WARNING: HALLUCINATIONS DETECTED - Do not fabricate information!
+Every code reference, file path, class, and function name MUST come from
+search_code or read_file results in this run. If you cannot find evidence,
+omit the claim or return summary "<no_content/>" with empty blocks.
+{% endif %}
+{% if review.issues %}
+Issues:
+{% for issue in review.issues %}
+- [{{ issue.severity }}] {{ issue.description }}
+{% endfor %}
+{% endif %}
+{% if review.suggestions %}
+Suggestions:
+{% for suggestion in review.suggestions %}
+- {{ suggestion }}
+{% endfor %}
+{% endif %}
+
+Please fix these issues and improve the page. If a section cannot be
+grounded in actual repository code, drop the section rather than guessing.

@@ -1,0 +1,306 @@
+{
+  "id": "components",
+  "title": "Components",
+  "description": "Learn about different content block types",
+  "metadata": {
+    "lastUpdated": "2024-02-22",
+    "readingTime": 8,
+    "tags": ["components", "blocks", "content-types"],
+    "categories": ["Documentation", "Components"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Content Components"
+    },
+    {
+      "type": "paragraph",
+      "text": "This wiki supports a variety of content blocks that you can use to create rich, well-structured documentation."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Block Types Overview"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {"text": "Headings (h1-h6) for structuring content"},
+        {"text": "Paragraphs for regular text"},
+        {"text": "Code blocks with syntax highlighting"},
+        {"text": "Lists (ordered and unordered)"},
+        {"text": "Tables for tabular data"},
+        {"text": "Images with captions"},
+        {"text": "Quotes and citations"},
+        {"text": "Callout boxes for alerts and notices"},
+        {"text": "Mermaid diagrams for visualizations"},
+        {"text": "Cut blocks for collapsible content sections"},
+        {"text": "Steps blocks for step-by-step guides"}
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Example: Callout Boxes"
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "This is an info callout. Use it to provide helpful information to your readers."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "text": "This is a warning callout. Use it to alert readers about important considerations."
+    },
+    {
+      "type": "callout",
+      "variant": "success",
+      "text": "This is a success callout. Use it to highlight positive outcomes or completed tasks."
+    },
+    {
+      "type": "callout",
+      "variant": "error",
+      "text": "This is an error callout. Use it to warn about errors or issues to avoid."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Example: Cut Blocks"
+    },
+    {
+      "type": "paragraph",
+      "text": "Cut blocks allow you to create collapsible sections to hide detailed content until the user needs it."
+    },
+    {
+      "type": "cut",
+      "title": "Click to expand: Basic Cut Example",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "This content is hidden by default and can be expanded by clicking the title. It's useful for hiding detailed information, long code examples, or optional content."
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "Keeps pages clean and organized"},
+            {"text": "Reduces initial page load visual clutter"},
+            {"text": "Allows users to focus on what they need"}
+          ]
+        }
+      ]
+    },
+    {
+      "type": "cut",
+      "title": "Advanced Example with Code",
+      "defaultOpen": false,
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "You can include any type of content inside a cut block, including code examples:"
+        },
+        {
+          "type": "code",
+          "lang": "typescript",
+          "code": "// Example of a complex function\nfunction processData<T>(data: T[], filter: (item: T) => boolean): T[] {\n  return data.filter(filter).map(item => {\n    // Process each item\n    return item;\n  });\n}\n\nconst numbers = [1, 2, 3, 4, 5];\nconst evenNumbers = processData(numbers, n => n % 2 === 0);\nconsole.log(evenNumbers); // [2, 4]"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Example: Steps"
+    },
+    {
+      "type": "paragraph",
+      "text": "Steps blocks are perfect for creating step-by-step guides and tutorials. Each step is numbered in a circle and connected with a vertical dashed line."
+    },
+    {
+      "type": "steps",
+      "items": [
+        {
+          "title": "Install Dependencies",
+          "description": "First, install all required dependencies using your package manager. Run `npm install` or `pnpm install` in your project directory."
+        },
+        {
+          "title": "Configure Environment",
+          "description": "Create a `.env.local` file and add your environment variables. Make sure to never commit sensitive data to version control."
+        },
+        {
+          "title": "Start Development Server",
+          "description": "Run the development server with `npm run dev`. Your application will be available at `http://localhost:3000`."
+        },
+        {
+          "title": "Build for Production",
+          "description": "When ready to deploy, build your application with `npm run build`. This creates an optimized production bundle."
+        }
+      ]
+    }
+  ],
+  "children": [
+    {
+      "id": "blocks",
+      "title": "Block Types",
+      "metadata": {
+        "lastUpdated": "2024-02-21",
+        "readingTime": 3,
+        "tags": ["blocks", "reference", "types"],
+        "categories": ["Components", "Reference"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Block Types Reference"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Headings"
+        },
+        {
+          "type": "paragraph",
+          "text": "Use headings to organize your content. The wiki supports h1 through h6 headings."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Paragraphs"
+        },
+        {
+          "type": "paragraph",
+          "text": "Paragraphs are the basic building blocks of text content. They support simple text formatting and are responsive on all screen sizes."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Lists"
+        },
+        {
+          "type": "paragraph",
+          "text": "Both ordered and unordered lists are supported:"
+        },
+        {
+          "type": "list",
+          "ordered": true,
+          "items": [
+            {"text": "First item"},
+            {"text": "Second item"},
+            {"text": "Third item"}
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "Bullet point one"},
+            {"text": "Bullet point two"},
+            {"text": "Bullet point three"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "code-blocks",
+      "title": "Code Blocks",
+      "metadata": {
+        "lastUpdated": "2024-02-22",
+        "readingTime": 4,
+        "tags": ["code", "syntax-highlighting", "examples"],
+        "categories": ["Components", "Code"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Code Blocks"
+        },
+        {
+          "type": "paragraph",
+          "text": "The wiki supports syntax-highlighted code blocks for many programming languages."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "JavaScript Example"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "code": "// Function to calculate factorial\nfunction factorial(n) {\n  if (n <= 1) return 1;\n  return n * factorial(n - 1);\n}\n\nconsole.log(factorial(5)); // Output: 120"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Python Example"
+        },
+        {
+          "type": "code",
+          "lang": "python",
+          "code": "# Function to calculate Fibonacci sequence\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\nfor i in range(10):\n    print(fibonacci(i))"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "TypeScript Example"
+        },
+        {
+          "type": "code",
+          "lang": "typescript",
+          "code": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\nfunction getUser(id: number): User {\n  return {\n    id,\n    name: 'John Doe',\n    email: 'john@example.com'\n  };\n}"
+        }
+      ]
+    },
+    {
+      "id": "diagrams",
+      "title": "Mermaid Diagrams",
+      "metadata": {
+        "lastUpdated": "2024-02-22",
+        "readingTime": 5,
+        "tags": ["mermaid", "diagrams", "visualization"],
+        "categories": ["Components", "Diagrams"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Mermaid Diagrams"
+        },
+        {
+          "type": "paragraph",
+          "text": "Create visual diagrams using Mermaid syntax. The wiki supports flowcharts, sequences, class diagrams, and more."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Flowchart Example"
+        },
+        {
+          "type": "mermaid",
+          "diagram": "flowchart TD\n    A[Start] --> B{Is it working?}\n    B -->|Yes| C[Great!]\n    B -->|No| D[Debug]\n    D --> B\n    C --> E[End]"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Sequence Diagram Example"
+        },
+        {
+          "type": "mermaid",
+          "diagram": "sequenceDiagram\n    participant User\n    participant Browser\n    participant Server\n    User->>Browser: Click button\n    Browser->>Server: Send request\n    Server->>Server: Process data\n    Server->>Browser: Send response\n    Browser->>User: Display result"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Class Diagram Example"
+        },
+        {
+          "type": "mermaid",
+          "diagram": "classDiagram\n    class Animal {\n      +name: string\n      +age: number\n      +makeSound()\n    }\n    class Dog {\n      +breed: string\n      +bark()\n    }\n    class Cat {\n      +color: string\n      +meow()\n    }\n    Animal <|-- Dog\n    Animal <|-- Cat"
+        }
+      ]
+    }
+  ]
+}

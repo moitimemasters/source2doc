@@ -1,0 +1,21 @@
+Review this documentation page:
+
+Expected (from PageSpec):
+- Title: {{ page_spec.title }}
+- Description: {{ page_spec.description }}
+
+Actual page:
+{{ page_json }}
+
+Evaluate quality, check for hallucinations, and provide feedback.
+
+Specifically flag has_hallucinations=true when the page references:
+- File paths, classes, or functions that you cannot verify with search_code
+  or read_file in this repository.
+- Tooling from a different language ecosystem than this codebase (e.g. a
+  TypeScript project being documented in terms of pip / pyproject.toml, or
+  a Python project being documented in terms of package.json / npm).
+
+If the page summary starts with "<no_content/>", return score=10 with no
+issues — the writer correctly opted out of fabricating content for a
+section the corpus does not cover.

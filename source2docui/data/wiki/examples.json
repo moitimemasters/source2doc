@@ -1,0 +1,331 @@
+{
+  "id": "examples",
+  "title": "Examples",
+  "description": "Markdown + Shiki examples (stored as JSON blocks)",
+  "metadata": {
+    "lastUpdated": "2024-02-23",
+    "readingTime": 10,
+    "tags": ["examples", "markdown", "syntax-highlighting", "code"],
+    "categories": ["Documentation", "Examples"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Examples: **Markdown** formatting + `Shiki` code highlighting"
+    },
+    {
+      "type": "paragraph",
+      "text": "This page demonstrates inline Markdown inside JSON fields: **bold**, *italic*, ~~strikethrough~~, `inline code`, and links like [Next.js](https://nextjs.org)."
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "Tip: you can also paste a raw URL and GFM will autolink it: https://github.com/shikijs/shiki"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Headings with formatting (TOC-safe)"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "A heading with **bold** and `code`"
+    },
+    {
+      "type": "paragraph",
+      "text": "The right-side TOC strips common markdown markers so it stays readable."
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Lists"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        { "text": "Use **bold** to highlight important terms" },
+        { "text": "Use *italic* for emphasis" },
+        { "text": "Use `inline code` for identifiers like `userId`" },
+        { "text": "Use links: [Internal wiki page](/wiki/getting-started) and [External](https://example.com)" }
+      ]
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        { "text": "Step 1: write a paragraph with **Markdown**" },
+        { "text": "Step 2: add a `code` block for examples" },
+        { "text": "Step 3: profit ~~(optional)~~" }
+      ]
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Tables (cells support inline Markdown)"
+    },
+    {
+      "type": "table",
+      "headers": ["Feature", "Example", "Notes"],
+      "rows": [
+        ["Bold", "**bold**", "Works in most text fields"],
+        ["Inline code", "`const x = 1`", "Rendered as <code>"],
+        ["Links", "[Shiki](https://github.com/shikijs/shiki)", "External links open in new tab"]
+      ]
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Code blocks (Shiki, light/dark themes)"
+    },
+    {
+      "type": "paragraph",
+      "text": "Below are a few code blocks with different languages. Switch theme (top-right) to verify dual-theme highlighting."
+    },
+    {
+      "type": "code",
+      "lang": "ts",
+      "code": "type User = {\n  id: number\n  name: string\n}\n\nexport function greet(user: User) {\n  return `Hello, ${user.name}!`\n}\n\nconsole.log(greet({ id: 1, name: 'Ivan' }))"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "pnpm dev\npnpm build\n\n# highlight should work in both light and dark themes"
+    },
+    {
+      "type": "code",
+      "lang": "json",
+      "code": "{\n  \"type\": \"paragraph\",\n  \"text\": \"Supports **markdown** inside JSON\"\n}"
+    },
+    {
+      "type": "code",
+      "lang": "py",
+      "code": "def add(a: int, b: int) -> int:\n    return a + b\n\nprint(add(2, 3))"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Quotes + callouts"
+    },
+    {
+      "type": "quote",
+      "text": "You can format quotes too: **bold**, *italic*, `inline code`.",
+      "author": "Wiki viewer"
+    },
+    {
+      "type": "callout",
+      "variant": "success",
+      "text": "Markdown works in callouts: **success** + `inline` + [link](https://example.com)."
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Link block type"
+    },
+    {
+      "type": "paragraph",
+      "text": "Link blocks are separate from markdown links; useful for call-to-action style links:"
+    },
+    {
+      "type": "link",
+      "text": "Go to **Getting Started** (label supports markdown, but no nested links)",
+      "href": "/wiki/getting-started"
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Images (caption supports inline Markdown)"
+    },
+    {
+      "type": "image",
+      "src": "/placeholder-image.jpg",
+      "alt": "Example image",
+      "caption": "Caption with **bold** and `inline code`."
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Cut blocks (collapsible sections)"
+    },
+    {
+      "type": "paragraph",
+      "text": "Cut blocks create collapsible sections. They're perfect for hiding detailed content, FAQs, or optional information."
+    },
+    {
+      "type": "cut",
+      "title": "Simple cut with **markdown** in title",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "This content is hidden by default. Click the title to expand it. You can use **markdown** formatting inside cut blocks."
+        }
+      ]
+    },
+    {
+      "type": "cut",
+      "title": "Cut with multiple content types",
+      "defaultOpen": false,
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "A cut can contain any type of content block:"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "**Lists** with formatting"},
+            {"text": "`Code` snippets"},
+            {"text": "[Links](https://example.com)"}
+          ]
+        },
+        {
+          "type": "code",
+          "lang": "typescript",
+          "code": "// Example code inside a cut\ninterface Config {\n  apiUrl: string;\n  timeout: number;\n}\n\nconst config: Config = {\n  apiUrl: 'https://api.example.com',\n  timeout: 5000\n};"
+        },
+        {
+          "type": "callout",
+          "variant": "info",
+          "text": "You can even nest callouts inside cuts!"
+        }
+      ]
+    },
+    {
+      "type": "cut",
+      "title": "FAQ: How do I use cut blocks?",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "Cut blocks are defined in JSON with the following structure:"
+        },
+        {
+          "type": "code",
+          "lang": "json",
+          "code": "{\n  \"type\": \"cut\",\n  \"title\": \"Click to expand\",\n  \"defaultOpen\": false,\n  \"blocks\": [\n    {\n      \"type\": \"paragraph\",\n      \"text\": \"Hidden content goes here\"\n    }\n  ]\n}"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "`title` - The clickable header text (supports markdown)"},
+            {"text": "`blocks` - Array of content blocks to show when expanded"},
+            {"text": "`defaultOpen` - Optional boolean, defaults to false"}
+          ]
+        }
+      ]
+    },
+    {
+      "type": "cut",
+      "title": "Nested cuts example",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "You can even nest cut blocks inside other cuts:"
+        },
+        {
+          "type": "cut",
+          "title": "Inner cut level 1",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "text": "This is a nested cut block. It works just like the parent."
+            },
+            {
+              "type": "cut",
+              "title": "Inner cut level 2",
+              "blocks": [
+                {
+                  "type": "paragraph",
+                  "text": "You can nest as deep as you need, though it's best to keep it reasonable for UX."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Steps (static mode with highlight)"
+    },
+    {
+      "type": "paragraph",
+      "text": "Steps blocks help you create step-by-step guides. You can highlight specific steps to draw attention to them."
+    },
+    {
+      "type": "steps",
+      "items": [
+        {
+          "title": "Install dependencies",
+          "description": "Run `pnpm install` to install all required packages."
+        },
+        {
+          "title": "Configure environment",
+          "description": "Create a `.env.local` file with your **API keys** and configuration.",
+          "highlight": true
+        },
+        {
+          "title": "Start development server",
+          "description": "Run `pnpm dev` to start the development server on [localhost:3000](http://localhost:3000)."
+        },
+        {
+          "title": "Build for production",
+          "description": "When ready, run `pnpm build` to create an optimized production build."
+        }
+      ]
+    },
+
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Steps (dynamic mode)"
+    },
+    {
+      "type": "paragraph",
+      "text": "Dynamic steps automatically highlight as you scroll through the page, creating an interactive reading experience."
+    },
+    {
+      "type": "steps",
+      "dynamic": true,
+      "items": [
+        {
+          "title": "Plan your architecture",
+          "description": "Start by designing the overall structure of your application. Consider **scalability**, **maintainability**, and **performance**."
+        },
+        {
+          "title": "Set up your project",
+          "description": "Initialize your project with the necessary tools and frameworks. Configure your build system and development environment."
+        },
+        {
+          "title": "Implement core features",
+          "description": "Build the main functionality of your application. Focus on creating a solid foundation before adding advanced features."
+        },
+        {
+          "title": "Add styling and UI",
+          "description": "Design and implement the user interface. Make sure it's **responsive** and provides a great user experience."
+        },
+        {
+          "title": "Test thoroughly",
+          "description": "Write and run tests to ensure your code works correctly. Include unit tests, integration tests, and end-to-end tests."
+        },
+        {
+          "title": "Deploy to production",
+          "description": "Deploy your application to a production environment. Set up monitoring and logging to track performance and errors."
+        }
+      ]
+    }
+  ]
+}

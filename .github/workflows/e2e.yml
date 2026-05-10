@@ -1,0 +1,67 @@
+name: E2E (Playwright)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress runs of this workflow when a new commit lands on the
+# same ref. Keeps CI cheap on rapid pushes.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Playwright (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Edge is a Chromium variant — covered by the chromium entry; we
+        # skip it in CI to keep the matrix lean. The desktop config still
+        # exposes it as a project for local runs (`--project=edge`).
+        browser: [chromium, firefox, webkit]
+    defaults:
+      run:
+        working-directory: source2docui
+    env:
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browser (${{ matrix.browser }})
+        run: bunx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Run Playwright tests
+        # All specs mock /api/gateway/** via page.route, so no real backend
+        # is required. The mobile project (Pixel 7) is intentionally not
+        # part of the matrix — the responsive.spec.ts file pins its own
+        # viewport, so it runs once per browser project.
+        run: bun run test:e2e -- --project=${{ matrix.browser }}
+
+      - name: Upload HTML report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: source2docui/playwright-report/
+          retention-days: 7
+
+      - name: Upload traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ matrix.browser }}
+          path: source2docui/test-results/
+          retention-days: 7

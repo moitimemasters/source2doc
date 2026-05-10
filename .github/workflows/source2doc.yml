@@ -1,0 +1,304 @@
+name: source2doc
+
+# Generate documentation for the consumer's repository by driving a deployed
+# source2doc gateway. Drop this file into `.github/workflows/` of any repo
+# that has access to a source2doc instance.
+#
+# Required secrets:
+#   SOURCE2DOC_URL       Base URL of the gateway (e.g. https://s2d.example.com)
+#   SOURCE2DOC_USERNAME  Admin username for the gateway
+#   SOURCE2DOC_PASSWORD  Admin password for the gateway
+#
+# Optional secrets:
+#   SOURCE2DOC_PRESET    Name of a server-side LLM preset to use. Falls back
+#                        to the gateway's default preset if unset.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pipeline_id:
+        description: "Pipeline to run on the gateway"
+        required: false
+        default: "docgen"
+        type: string
+      bundle_format:
+        description: "Bundle output format (mkdocs, nextra, sphinx)"
+        required: false
+        default: "mkdocs"
+        type: choice
+        options:
+          - mkdocs
+          - nextra
+          - sphinx
+      branch:
+        description: "Branch to document (defaults to the triggering ref)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source2doc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-docs:
+    name: Generate documentation via source2doc
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SOURCE2DOC_URL: ${{ secrets.SOURCE2DOC_URL }}
+      SOURCE2DOC_USERNAME: ${{ secrets.SOURCE2DOC_USERNAME }}
+      SOURCE2DOC_PASSWORD: ${{ secrets.SOURCE2DOC_PASSWORD }}
+      SOURCE2DOC_PRESET: ${{ secrets.SOURCE2DOC_PRESET }}
+      PIPELINE_ID: ${{ github.event.inputs.pipeline_id || 'docgen' }}
+      BUNDLE_FORMAT: ${{ github.event.inputs.bundle_format || 'mkdocs' }}
+      TARGET_BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
+      POLL_INTERVAL_SECONDS: "10"
+      POLL_TIMEOUT_SECONDS: "1800"
+      COOKIE_JAR: cookies.txt
+
+    steps:
+      - name: Validate required secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for var in SOURCE2DOC_URL SOURCE2DOC_USERNAME SOURCE2DOC_PASSWORD; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error ::Missing required secret: ${var}"
+              missing=1
+            fi
+          done
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Authenticate against the gateway
+        run: |
+          set -euo pipefail
+          rm -f "${COOKIE_JAR}"
+          status=$(curl --silent --show-error --output login.json --write-out '%{http_code}' \
+            -c "${COOKIE_JAR}" \
+            -H 'Content-Type: application/json' \
+            -X POST \
+            --data "$(jq -n --arg u "${SOURCE2DOC_USERNAME}" --arg p "${SOURCE2DOC_PASSWORD}" '{username:$u,password:$p}')" \
+            "${SOURCE2DOC_URL%/}/api/v1/admin/auth/login")
+          if [ "${status}" != "200" ]; then
+            echo "::error ::Login failed with HTTP ${status}"
+            cat login.json || true
+            exit 1
+          fi
+          echo "Login OK"
+
+      - name: Package working tree as a tarball
+        id: package
+        run: |
+          set -euo pipefail
+          archive_name="repo-${GITHUB_RUN_ID}.tar.gz"
+          tar --exclude-vcs --exclude='.github/workflows' \
+              -czf "${archive_name}" -C "${GITHUB_WORKSPACE}" .
+          echo "archive=${archive_name}" >> "${GITHUB_OUTPUT}"
+          ls -la "${archive_name}"
+
+      - name: Upload repository to gateway
+        id: upload
+        run: |
+          set -euo pipefail
+          repo_name="${GITHUB_REPOSITORY#*/}@${TARGET_BRANCH}"
+          status=$(curl --silent --show-error --output upload.json --write-out '%{http_code}' \
+            -b "${COOKIE_JAR}" \
+            -F "file=@${{ steps.package.outputs.archive }}" \
+            -F "name=${repo_name}" \
+            -F "description=Uploaded from GitHub Actions run ${GITHUB_RUN_ID}" \
+            "${SOURCE2DOC_URL%/}/api/v1/repos/upload")
+          if [ "${status}" != "200" ]; then
+            echo "::error ::Repo upload failed with HTTP ${status}"
+            cat upload.json || true
+            exit 1
+          fi
+          repo_id=$(jq -r '.repo_id' upload.json)
+          if [ -z "${repo_id}" ] || [ "${repo_id}" = "null" ]; then
+            echo "::error ::Gateway returned no repo_id"
+            cat upload.json
+            exit 1
+          fi
+          echo "repo_id=${repo_id}" >> "${GITHUB_OUTPUT}"
+          echo "Uploaded repo_id=${repo_id}"
+
+      - name: Create generation task
+        id: task
+        run: |
+          set -euo pipefail
+          payload=$(jq -n \
+            --arg repo_id "${{ steps.upload.outputs.repo_id }}" \
+            --arg name "${GITHUB_REPOSITORY} (${TARGET_BRANCH})" \
+            --arg description "GitHub Actions run ${GITHUB_RUN_ID} on ${GITHUB_SHA}" \
+            --arg preset "${SOURCE2DOC_PRESET}" \
+            '{repo_id:$repo_id, name:$name, description:$description}
+             + (if $preset == "" then {} else {preset:$preset} end)')
+          status=$(curl --silent --show-error --output task.json --write-out '%{http_code}' \
+            -b "${COOKIE_JAR}" \
+            -H 'Content-Type: application/json' \
+            -X POST \
+            --data "${payload}" \
+            "${SOURCE2DOC_URL%/}/api/v1/tasks")
+          if [ "${status}" != "200" ]; then
+            echo "::error ::Task creation failed with HTTP ${status}"
+            cat task.json || true
+            exit 1
+          fi
+          generation_id=$(jq -r '.generation_id' task.json)
+          if [ -z "${generation_id}" ] || [ "${generation_id}" = "null" ]; then
+            echo "::error ::Gateway returned no generation_id"
+            cat task.json
+            exit 1
+          fi
+          echo "generation_id=${generation_id}" >> "${GITHUB_OUTPUT}"
+          echo "Created generation_id=${generation_id}"
+
+      - name: Poll for completion
+        id: wait
+        run: |
+          set -euo pipefail
+          gen_id="${{ steps.task.outputs.generation_id }}"
+          deadline=$(( $(date +%s) + POLL_TIMEOUT_SECONDS ))
+          status="unknown"
+          while [ "$(date +%s)" -lt "${deadline}" ]; do
+            curl --silent --show-error --fail \
+              -b "${COOKIE_JAR}" \
+              "${SOURCE2DOC_URL%/}/api/v1/streams/${gen_id}/events" \
+              -o events.json || {
+                echo "Stream not ready yet, retrying..."
+                sleep "${POLL_INTERVAL_SECONDS}"
+                continue
+              }
+            recent_types=$(jq -r '[.[].type] | reverse | .[0:20] | .[]' events.json || true)
+            if echo "${recent_types}" | grep -qx 'generation.completed'; then
+              status="completed"
+              break
+            fi
+            if echo "${recent_types}" | grep -qxE 'generation\.failed|task\.failed|step\.failed'; then
+              status="failed"
+              break
+            fi
+            last_type=$(echo "${recent_types}" | head -n1)
+            echo "Pipeline still running (last event: ${last_type:-none}); sleeping ${POLL_INTERVAL_SECONDS}s"
+            sleep "${POLL_INTERVAL_SECONDS}"
+          done
+          if [ "${status}" = "failed" ]; then
+            echo "::error ::Pipeline reported failure"
+            jq '.' events.json | tail -n 200 || true
+            exit 1
+          fi
+          if [ "${status}" != "completed" ]; then
+            echo "::error ::Polling timed out after ${POLL_TIMEOUT_SECONDS}s"
+            exit 1
+          fi
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          echo "Pipeline completed"
+
+      - name: Resolve bundle id
+        id: bundle
+        run: |
+          set -euo pipefail
+          gen_id="${{ steps.task.outputs.generation_id }}"
+          curl --silent --show-error --fail \
+            -b "${COOKIE_JAR}" \
+            "${SOURCE2DOC_URL%/}/api/v1/docs/bundles?limit=200" \
+            -o bundles.json
+          bundle_id=$(jq -r --arg gid "${gen_id}" '.bundles[] | select(.generation_id==$gid) | .id' bundles.json | head -n1)
+          if [ -z "${bundle_id}" ] || [ "${bundle_id}" = "null" ]; then
+            echo "::error ::Could not find bundle for generation_id=${gen_id}"
+            jq '.' bundles.json | tail -n 200
+            exit 1
+          fi
+          echo "bundle_id=${bundle_id}" >> "${GITHUB_OUTPUT}"
+          echo "Bundle id resolved: ${bundle_id}"
+
+      - name: Request bundle export
+        run: |
+          set -euo pipefail
+          payload=$(jq -n \
+            --argjson bundle_id ${{ steps.bundle.outputs.bundle_id }} \
+            --arg generation_id "${{ steps.task.outputs.generation_id }}" \
+            --arg format "${BUNDLE_FORMAT}" \
+            '{bundle_id:$bundle_id, generation_id:$generation_id, format:$format}')
+          status=$(curl --silent --show-error --output export.json --write-out '%{http_code}' \
+            -b "${COOKIE_JAR}" \
+            -H 'Content-Type: application/json' \
+            -X POST \
+            --data "${payload}" \
+            "${SOURCE2DOC_URL%/}/api/v1/bundles/export")
+          if [ "${status}" != "200" ]; then
+            echo "::error ::Bundle export request failed with HTTP ${status}"
+            cat export.json || true
+            exit 1
+          fi
+          echo "Bundle export requested"
+
+      - name: Wait for the bundle archive to appear
+        id: archive
+        run: |
+          set -euo pipefail
+          deadline=$(( $(date +%s) + POLL_TIMEOUT_SECONDS ))
+          while [ "$(date +%s)" -lt "${deadline}" ]; do
+            curl --silent --show-error --fail \
+              -b "${COOKIE_JAR}" \
+              "${SOURCE2DOC_URL%/}/api/v1/bundles/exports?bundle_id=${{ steps.bundle.outputs.bundle_id }}" \
+              -o exports.json || true
+            s3_key=$(jq -r --arg fmt "${BUNDLE_FORMAT}" \
+              '.exports[] | select(.format==$fmt) | .s3_key' exports.json 2>/dev/null | head -n1 || true)
+            if [ -n "${s3_key}" ] && [ "${s3_key}" != "null" ]; then
+              echo "s3_key=${s3_key}" >> "${GITHUB_OUTPUT}"
+              echo "Bundle ready: ${s3_key}"
+              exit 0
+            fi
+            echo "Waiting for ${BUNDLE_FORMAT} archive..."
+            sleep "${POLL_INTERVAL_SECONDS}"
+          done
+          echo "::error ::Bundle archive never appeared in S3"
+          exit 1
+
+      - name: Download bundle archive
+        run: |
+          set -euo pipefail
+          encoded=$(jq -rn --arg k "${{ steps.archive.outputs.s3_key }}" '$k|@uri')
+          curl --silent --show-error --fail \
+            -b "${COOKIE_JAR}" \
+            "${SOURCE2DOC_URL%/}/api/v1/bundles/exports/download?s3_key=${encoded}" \
+            -o "source2doc-${BUNDLE_FORMAT}.tar.gz"
+          ls -la "source2doc-${BUNDLE_FORMAT}.tar.gz"
+
+      - name: Upload bundle as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source2doc-bundle-${{ env.BUNDLE_FORMAT }}
+          path: source2doc-${{ env.BUNDLE_FORMAT }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Logout
+        if: always()
+        run: |
+          set -e
+          if [ -f "${COOKIE_JAR}" ]; then
+            curl --silent --show-error \
+              -b "${COOKIE_JAR}" \
+              -X POST \
+              "${SOURCE2DOC_URL%/}/api/v1/admin/auth/logout" \
+              -o /dev/null || true
+            rm -f "${COOKIE_JAR}"
+          fi

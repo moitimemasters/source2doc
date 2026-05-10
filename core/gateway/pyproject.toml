@@ -1,0 +1,54 @@
+[project]
+name = "source2doc-gateway"
+version = "0.1.0"
+description = "Gateway API for source2doc infrastructure"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "python-multipart>=0.0.9",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "redis[hiredis]>=5.0.0",
+    "cryptography>=41.0.0",
+    "bcrypt>=4.1.0",
+    "openai>=1.0.0",
+    "qdrant-client>=1.7.0",
+    "httpx>=0.27.0",
+    "source2doc-shared",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "fakeredis[aioredis]>=2.20",
+    "httpx>=0.27",
+]
+e2e = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "testcontainers[postgres,redis,localstack]>=4.0",
+    "boto3>=1.34",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "e2e: integration tests using testcontainers — require Docker socket access",
+    "perf: latency benchmarks for status / SSE endpoints — slower, opt-in",
+]
+
+[project.scripts]
+gateway = "app.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv.sources]
+source2doc-shared = { workspace = true }

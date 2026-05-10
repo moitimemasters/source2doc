@@ -1,0 +1,37 @@
+{
+    "include": ["gateway", "worker", "shared", "mvp"],
+    "exclude": ["**/node_modules", "**/__pycache__", "**/.*"],
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.12",
+    "pythonPlatform": "All",
+    "typeCheckingMode": "basic",
+    "useLibraryCodeForTypes": true,
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "executionEnvironments": [
+        {
+            "root": "gateway",
+            "pythonVersion": "3.12",
+            "extraPaths": ["shared"]
+        },
+        {
+            "root": "worker",
+            "pythonVersion": "3.12",
+            "extraPaths": ["shared", "mvp"]
+        },
+        {
+            "root": "mvp",
+            "pythonVersion": "3.12",
+            "extraPaths": ["shared"]
+        },
+        {
+            "root": "shared",
+            "pythonVersion": "3.12"
+        },
+        {
+            "root": "codetour",
+            "pythonVersion": "3.13"
+        }
+    ]
+}

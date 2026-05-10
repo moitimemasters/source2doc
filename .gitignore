@@ -1,0 +1,130 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+target/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Lock files (keep package-lock.json but ignore others)
+bun.lockb
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Testing
+coverage/
+.nyc_output/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# Docker
+.dockerignore
+
+# Kubernetes secrets
+k8s/secrets.yaml
+k8s/*/secrets.yaml
+
+# Project specific
+.worktrees/
+.test-workspace/
+downloads/
+tour_*.json
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# UV (Python package manager)
+.uv/
+uv.lock
+
+# Next.js
+.next/
+out/
+
+# Vercel
+.vercel
+
+
+
+config.ui.yaml
+.worktrees
+
+# Component config files — contain encryption_key (Fernet), LLM api_key,
+# admin_password_hash (bcrypt), Logfire tokens, etc. Each has a *.example
+# variant next to it that is safe to commit. Generate real values via:
+#   ./generate-encryption-key.sh "<passphrase>"   → encryption_key
+#   ./generate-admin-password.sh                  → admin_password_hash
+core/gateway/config.yaml
+core/gateway/config.docker.yaml
+core/worker/config.yaml
+core/worker/config.docker.yaml
+core/codetour/config.yaml
+core/mvp/configs/config.yaml

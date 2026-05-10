@@ -1,0 +1,188 @@
+{
+  "title": "CLI Interface",
+  "summary": "Command-line interface for generating documentation using Typer framework",
+  "metadata": {
+    "generated_at": "2024-02-28T18:00:00Z",
+    "reading_time": 7,
+    "tags": [
+      "cli",
+      "interface",
+      "typer",
+      "commands"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "CLI Interface"
+    },
+    {
+      "type": "paragraph",
+      "text": "The CLI interface provides a **command-line interface** for generating documentation using Typer framework. It supports asynchronous event-driven architecture for efficient processing."
+    },
+    {
+      "type": "paragraph",
+      "text": "Available Commands"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**generate** - Main command for documentation generation"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Generate Command"
+    },
+    {
+      "type": "paragraph",
+      "text": "The `generate` command is the primary interface for generating documentation. It accepts several parameters and options to customize the generation process."
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Parameter",
+        "Type",
+        "Default",
+        "Description"
+      ],
+      "rows": [
+        [
+          "path",
+          "Path (required)",
+          "-",
+          "Path to the codebase to document"
+        ],
+        [
+          "config",
+          "Path",
+          "configs/config.yaml",
+          "Path to configuration file"
+        ],
+        [
+          "output",
+          "Path",
+          "documentation",
+          "Output directory for generated docs"
+        ],
+        [
+          "clear_qdrant",
+          "bool",
+          "False",
+          "Clear Qdrant collection before indexing"
+        ]
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "@app.command()\ndef generate(\n    path: Path = typer.Argument(..., help=\"Path to codebase\"),\n    config: Path = typer.Option(\"configs/config.yaml\", help=\"Path to config file\"),\n    output: Path = typer.Option(\"documentation\", help=\"Output directory\"),\n    clear_qdrant: bool = typer.Option(False, \"--clear-qdrant\", help=\"Clear Qdrant collection before indexing\"),\n) -> None:\n    \"\"\"Generate documentation for codebase.\"\"\"\n    asyncio.run(generate_async(path, config, output, clear_qdrant))"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Usage Examples"
+    },
+    {
+      "type": "paragraph",
+      "text": "Basic usage with default configuration:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "docgen generate ./my-project"
+    },
+    {
+      "type": "paragraph",
+      "text": "With custom configuration and output directory:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "docgen generate ./my-project --config my-config.yaml --output ./docs"
+    },
+    {
+      "type": "paragraph",
+      "text": "Clear Qdrant vector database before indexing:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "docgen generate ./my-project --clear-qdrant"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Architecture"
+    },
+    {
+      "type": "paragraph",
+      "text": "The CLI uses an **asynchronous event-driven architecture**:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Event Bus**: Redis-based event system for communication"
+        },
+        {
+          "text": "**Worker Process**: Handles the actual documentation generation"
+        },
+        {
+          "text": "**Vector Store**: Qdrant for storing and retrieving embeddings"
+        },
+        {
+          "text": "**Embeddings**: OpenAI embeddings for semantic search"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "async def generate_async(path: Path, config_path: Path, output_dir: Path, clear_qdrant: bool) -> None:\n    \"\"\"Async documentation generation using event-driven architecture.\"\"\"\n    # Load config\n    config = load_config(config_path)\n    \n    # Configure logging\n    configure_logging(config.logging.level)\n    logger = get_logger(__name__)\n    \n    # Initialize services\n    embeddings = OpenAIEmbeddings(config.embeddings)\n    vectorstore = QdrantVectorStore(config.qdrant, config.embeddings.dimensions)\n    event_bus = RedisEventBus(config.redis, generation_id)\n    \n    # Create worker and start generation\n    worker = Worker(event_bus, config, embeddings, vectorstore)"
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "info"
+    },
+    {
+      "type": "paragraph",
+      "text": "The CLI uses structured logging with `structlog` for better observability and debugging."
+    },
+    {
+      "type": "callout",
+      "variant": "warning",
+      "text": "warning"
+    },
+    {
+      "type": "paragraph",
+      "text": "Use `--clear-qdrant` option carefully as it will delete all existing vectors in the collection."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Entry Point"
+    },
+    {
+      "type": "paragraph",
+      "text": "The CLI is executed through the `main()` function:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def main() -> None:\n    \"\"\"Entry point.\"\"\"\n    app()\n\nif __name__ == \"__main__\":\n    main()"
+    }
+  ],
+  "related": [
+    "configuration",
+    "architecture",
+    "workers"
+  ]
+}

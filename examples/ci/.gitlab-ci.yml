@@ -1,0 +1,201 @@
+# GitLab CI/CD pipeline for driving a deployed source2doc gateway.
+# Copy into your repo as `.gitlab-ci.yml` (or `include:` it from one).
+#
+# Required CI/CD variables (Settings -> CI/CD -> Variables):
+#   SOURCE2DOC_URL       Base URL of the gateway (e.g. https://s2d.example.com)
+#   SOURCE2DOC_USERNAME  Admin username
+#   SOURCE2DOC_PASSWORD  Admin password (mark "Masked")
+#
+# Optional:
+#   SOURCE2DOC_PRESET    Server-side LLM preset name; falls back to default.
+#   BUNDLE_FORMAT        One of: mkdocs, nextra, sphinx (default: mkdocs)
+
+stages:
+  - generate-docs
+
+variables:
+  BUNDLE_FORMAT: "mkdocs"
+  POLL_INTERVAL_SECONDS: "10"
+  POLL_TIMEOUT_SECONDS: "1800"
+  COOKIE_JAR: "${CI_PROJECT_DIR}/cookies.txt"
+  GIT_DEPTH: "0"
+
+source2doc:generate:
+  stage: generate-docs
+  image: alpine:3.20
+  timeout: 35 minutes
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  before_script:
+    - apk add --no-cache curl jq tar bash
+    - |
+      for var in SOURCE2DOC_URL SOURCE2DOC_USERNAME SOURCE2DOC_PASSWORD; do
+        if [ -z "$(eval echo \$$var)" ]; then
+          echo "Missing required variable: $var" >&2
+          exit 1
+        fi
+      done
+  script:
+    - set -euo pipefail
+    - cd "${CI_PROJECT_DIR}"
+
+    # 1. Login -> session cookie.
+    - rm -f "${COOKIE_JAR}"
+    - |
+      status=$(curl --silent --show-error --output login.json --write-out '%{http_code}' \
+        -c "${COOKIE_JAR}" \
+        -H 'Content-Type: application/json' \
+        -X POST \
+        --data "$(jq -n --arg u "${SOURCE2DOC_USERNAME}" --arg p "${SOURCE2DOC_PASSWORD}" '{username:$u,password:$p}')" \
+        "${SOURCE2DOC_URL%/}/api/v1/admin/auth/login")
+      if [ "${status}" != "200" ]; then
+        echo "Login failed with HTTP ${status}" >&2
+        cat login.json || true
+        exit 1
+      fi
+
+    # 2. Package working tree.
+    - archive_name="repo-${CI_PIPELINE_ID}.tar.gz"
+    - tar --exclude-vcs --exclude='.gitlab-ci.yml' -czf "${archive_name}" -C "${CI_PROJECT_DIR}" .
+
+    # 3. Upload to gateway.
+    - repo_name="${CI_PROJECT_PATH}@${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME}}"
+    - |
+      status=$(curl --silent --show-error --output upload.json --write-out '%{http_code}' \
+        -b "${COOKIE_JAR}" \
+        -F "file=@${archive_name}" \
+        -F "name=${repo_name}" \
+        -F "description=GitLab pipeline ${CI_PIPELINE_ID}" \
+        "${SOURCE2DOC_URL%/}/api/v1/repos/upload")
+      if [ "${status}" != "200" ]; then
+        echo "Upload failed with HTTP ${status}" >&2
+        cat upload.json || true
+        exit 1
+      fi
+    - REPO_ID=$(jq -r '.repo_id' upload.json)
+    - test -n "${REPO_ID}" && test "${REPO_ID}" != "null"
+
+    # 4. Create generation task.
+    - |
+      payload=$(jq -n \
+        --arg repo_id "${REPO_ID}" \
+        --arg name "${CI_PROJECT_PATH} (${CI_COMMIT_REF_NAME})" \
+        --arg description "GitLab pipeline ${CI_PIPELINE_ID} on ${CI_COMMIT_SHA}" \
+        --arg preset "${SOURCE2DOC_PRESET:-}" \
+        '{repo_id:$repo_id, name:$name, description:$description}
+         + (if $preset == "" then {} else {preset:$preset} end)')
+      status=$(curl --silent --show-error --output task.json --write-out '%{http_code}' \
+        -b "${COOKIE_JAR}" \
+        -H 'Content-Type: application/json' \
+        -X POST \
+        --data "${payload}" \
+        "${SOURCE2DOC_URL%/}/api/v1/tasks")
+      if [ "${status}" != "200" ]; then
+        echo "Task creation failed with HTTP ${status}" >&2
+        cat task.json || true
+        exit 1
+      fi
+    - GEN_ID=$(jq -r '.generation_id' task.json)
+    - test -n "${GEN_ID}" && test "${GEN_ID}" != "null"
+
+    # 5. Poll for completion.
+    - |
+      deadline=$(( $(date +%s) + POLL_TIMEOUT_SECONDS ))
+      status="unknown"
+      while [ "$(date +%s)" -lt "${deadline}" ]; do
+        if ! curl --silent --show-error --fail \
+            -b "${COOKIE_JAR}" \
+            "${SOURCE2DOC_URL%/}/api/v1/streams/${GEN_ID}/events" \
+            -o events.json; then
+          sleep "${POLL_INTERVAL_SECONDS}"
+          continue
+        fi
+        recent_types=$(jq -r '[.[].type] | reverse | .[0:20] | .[]' events.json || true)
+        if echo "${recent_types}" | grep -qx 'generation.completed'; then
+          status="completed"
+          break
+        fi
+        if echo "${recent_types}" | grep -qxE 'generation\.failed|task\.failed|step\.failed'; then
+          status="failed"
+          break
+        fi
+        sleep "${POLL_INTERVAL_SECONDS}"
+      done
+      if [ "${status}" = "failed" ]; then
+        echo "Pipeline reported failure" >&2
+        jq '.' events.json | tail -n 200 || true
+        exit 1
+      fi
+      if [ "${status}" != "completed" ]; then
+        echo "Polling timed out after ${POLL_TIMEOUT_SECONDS}s" >&2
+        exit 1
+      fi
+
+    # 6. Resolve bundle id.
+    - curl --silent --show-error --fail -b "${COOKIE_JAR}" "${SOURCE2DOC_URL%/}/api/v1/docs/bundles?limit=200" -o bundles.json
+    - BUNDLE_ID=$(jq -r --arg gid "${GEN_ID}" '.bundles[] | select(.generation_id==$gid) | .id' bundles.json | head -n1)
+    - test -n "${BUNDLE_ID}" && test "${BUNDLE_ID}" != "null"
+
+    # 7. Request bundle export.
+    - |
+      payload=$(jq -n \
+        --argjson bundle_id ${BUNDLE_ID} \
+        --arg generation_id "${GEN_ID}" \
+        --arg format "${BUNDLE_FORMAT}" \
+        '{bundle_id:$bundle_id, generation_id:$generation_id, format:$format}')
+      status=$(curl --silent --show-error --output export.json --write-out '%{http_code}' \
+        -b "${COOKIE_JAR}" \
+        -H 'Content-Type: application/json' \
+        -X POST \
+        --data "${payload}" \
+        "${SOURCE2DOC_URL%/}/api/v1/bundles/export")
+      if [ "${status}" != "200" ]; then
+        echo "Bundle export request failed with HTTP ${status}" >&2
+        cat export.json || true
+        exit 1
+      fi
+
+    # 8. Wait for archive then download it.
+    - |
+      deadline=$(( $(date +%s) + POLL_TIMEOUT_SECONDS ))
+      S3_KEY=""
+      while [ "$(date +%s)" -lt "${deadline}" ]; do
+        curl --silent --show-error --fail \
+          -b "${COOKIE_JAR}" \
+          "${SOURCE2DOC_URL%/}/api/v1/bundles/exports?bundle_id=${BUNDLE_ID}" \
+          -o exports.json || true
+        S3_KEY=$(jq -r --arg fmt "${BUNDLE_FORMAT}" \
+          '.exports[] | select(.format==$fmt) | .s3_key' exports.json 2>/dev/null | head -n1 || true)
+        if [ -n "${S3_KEY}" ] && [ "${S3_KEY}" != "null" ]; then
+          break
+        fi
+        sleep "${POLL_INTERVAL_SECONDS}"
+      done
+      if [ -z "${S3_KEY}" ] || [ "${S3_KEY}" = "null" ]; then
+        echo "Bundle archive never appeared in S3" >&2
+        exit 1
+      fi
+      encoded=$(jq -rn --arg k "${S3_KEY}" '$k|@uri')
+      curl --silent --show-error --fail \
+        -b "${COOKIE_JAR}" \
+        "${SOURCE2DOC_URL%/}/api/v1/bundles/exports/download?s3_key=${encoded}" \
+        -o "source2doc-${BUNDLE_FORMAT}.tar.gz"
+
+  after_script:
+    - |
+      if [ -f "${COOKIE_JAR}" ]; then
+        curl --silent --show-error \
+          -b "${COOKIE_JAR}" \
+          -X POST \
+          "${SOURCE2DOC_URL%/}/api/v1/admin/auth/logout" \
+          -o /dev/null || true
+        rm -f "${COOKIE_JAR}"
+      fi
+  artifacts:
+    name: "source2doc-${CI_COMMIT_REF_SLUG}-${BUNDLE_FORMAT}"
+    when: on_success
+    expire_in: 14 days
+    paths:
+      - "source2doc-${BUNDLE_FORMAT}.tar.gz"

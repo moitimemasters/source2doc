@@ -1,0 +1,285 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.98 0.001 70);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.18 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.001 70);
+  --secondary-foreground: oklch(0.18 0 0);
+  --muted: oklch(0.93 0.001 70);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.92 0.004 280);
+  --accent-foreground: oklch(0.18 0 0);
+  --destructive: oklch(0.63 0.25 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.91 0.001 70);
+  --input: oklch(0.96 0.001 70);
+  --ring: oklch(0.55 0.06 280);
+  --chart-1: oklch(0.62 0.2 40);
+  --chart-2: oklch(0.58 0.12 180);
+  --chart-3: oklch(0.38 0.07 220);
+  --chart-4: oklch(0.81 0.18 80);
+  --chart-5: oklch(0.75 0.18 70);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(0.11 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.15 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.28 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.27 0.005 280);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.63 0.25 25);
+  --destructive-foreground: oklch(0.95 0 0);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.65 0.06 280);
+  --chart-1: oklch(0.62 0.2 40);
+  --chart-2: oklch(0.58 0.12 180);
+  --chart-3: oklch(0.38 0.07 220);
+  --chart-4: oklch(0.81 0.18 80);
+  --chart-5: oklch(0.75 0.18 70);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Prose styles for better readability */
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose h1 {
+    @apply text-4xl font-bold mt-12 mb-6 text-foreground;
+  }
+
+  .prose h2 {
+    @apply text-3xl font-bold mt-10 mb-5 text-foreground;
+  }
+
+  .prose h3 {
+    @apply text-2xl font-semibold mt-8 mb-4 text-foreground;
+  }
+
+  .prose p {
+    @apply leading-7 text-foreground/90 mb-4;
+  }
+
+  .prose ul, .prose ol {
+    @apply my-6 ml-6;
+  }
+
+  .prose li {
+    @apply leading-7 mb-2;
+  }
+
+  .prose code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  .prose pre {
+    @apply bg-muted rounded-lg p-4 overflow-x-auto;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-primary/40 pl-4 italic text-foreground/80;
+  }
+}
+
+/* Shiki (dual themes) */
+.wiki-code .shiki {
+  margin: 0;
+  padding: 1rem;
+  background-color: transparent !important;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+/* Shiki dual themes: shiki's first theme (light) is emitted as inline `color: <hex>`,
+   the second (dark) only as `--shiki-dark`. So we leave light alone and override in dark. */
+html.dark .wiki-code .shiki,
+html.dark .wiki-code .shiki span {
+  color: var(--shiki-dark) !important;
+}
+
+/* Ensure backgrounds stay transparent */
+.wiki-code .shiki,
+.wiki-code .shiki span {
+  background-color: transparent !important;
+}
+
+/* ----------------------------------------------------------------------
+   B6.4 / ТЗ ДОК-10 — print stylesheet for "Download PDF" (window.print()).
+   The wiki UI is print-friendly but heavy on chrome (sidebar, sticky
+   header, metadata toolbar, tooltips). The rules below strip the chrome
+   so a Cmd+P / "Save as PDF" produces a clean A4 page that contains:
+     - the article body
+     - the page metadata strip (date, commit SHA, LLM, tokens)
+   without any of the navigation surface.
+
+   Forces the light theme regardless of the user's current preference —
+   black text on white paper is the printable default and ink-cheap.
+   ------------------------------------------------------------------- */
+@media print {
+  /* Force light theme tokens. Tailwind's ``dark`` variant is keyed off
+     ``html.dark`` (see @custom-variant at top of file), so resetting the
+     vars on ``html, html.dark`` covers both root and explicit dark. */
+  html,
+  html.dark {
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    --primary: #000000;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #000000;
+    --muted: #f4f4f5;
+    --muted-foreground: #444444;
+    --accent: #f4f4f5;
+    --accent-foreground: #000000;
+    --border: #cccccc;
+    --input: #ffffff;
+    --ring: #888888;
+    color-scheme: light;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Strip global chrome. The wiki layout uses these structural elements
+     for sidebar / header / floating controls. */
+  aside,
+  header,
+  nav,
+  /* The TOC / sidebar are pure aside elements — handled above. */
+  /* CodeTour input, navigation arrows, scroll-to-top, search bar. */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Some wiki controls live in <div>/<button>; tag them via class so we
+     can hide explicitly without sweeping every <div>. */
+  .reading-progress,
+  [aria-label="Toggle sidebar"],
+  [aria-label="Close sidebar"] {
+    display: none !important;
+  }
+
+  /* Make the article occupy the full printable width — no sticky
+     containers, no sidebar gutter. */
+  main,
+  article {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  /* Drop sticky positioning and shadows — they look broken when paginated. */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    position: static !important;
+  }
+
+  /* Keep the metadata strip but render it in plain ink. */
+  .page-metadata {
+    border-bottom: 1px solid #cccccc !important;
+    color: #000000 !important;
+  }
+
+  /* Hide images-only blocks that are decorative; keep diagrams/tables. */
+  /* Ensure code blocks wrap rather than overflow off the page. */
+  pre,
+  code {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    background: #f4f4f5 !important;
+    color: #000000 !important;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: underline;
+  }
+
+  /* Page geometry — A4 portrait with comfortable margins. */
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+}

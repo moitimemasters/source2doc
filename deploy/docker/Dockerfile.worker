@@ -1,0 +1,60 @@
+FROM python:3.13-slim
+
+# System deps:
+#  - git, ca-certificates: clone repos for the repos worker.
+#  - nodejs/npm: needed by @mermaid-js/mermaid-cli (the bundler worker uses it
+#    to pre-render Mermaid diagrams to SVG/PNG when mermaid_render != "fence").
+#  - Chromium runtime libraries: mmdc drives Puppeteer-bundled chromium under
+#    the hood; the bundled binary needs these shared objects at run-time.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        ca-certificates \
+        curl \
+        gnupg \
+        chromium \
+        fonts-liberation \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libdrm2 \
+        libexpat1 \
+        libgbm1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libpango-1.0-0 \
+        libx11-6 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxrandr2 \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install mermaid-cli globally so `mmdc` is on PATH for the bundler worker.
+# Use the system-installed chromium instead of letting Puppeteer download its
+# own (smaller image, fewer surprises behind corporate proxies).
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    MMDC_PUPPETEER_CONFIG_FILE=/etc/mmdc/puppeteer.json
+RUN mkdir -p /etc/mmdc \
+    && printf '%s\n' '{"args": ["--no-sandbox", "--disable-setuid-sandbox"]}' \
+        > /etc/mmdc/puppeteer.json \
+    && npm install -g --no-audit --no-fund @mermaid-js/mermaid-cli@^11
+
+RUN pip install --no-cache-dir uv
+WORKDIR /app
+COPY core/ core/
+RUN cd core && uv sync --package source2doc-worker --no-dev --frozen
+COPY deploy/docker/worker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+WORKDIR /app/core/worker
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["uv", "run", "worker", "docgen"]

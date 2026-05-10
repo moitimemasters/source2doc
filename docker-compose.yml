@@ -1,0 +1,362 @@
+services:
+  # PostgreSQL database for documentation storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: source2doc-postgres
+    environment:
+      POSTGRES_DB: docgen
+      POSTGRES_USER: docgen
+      POSTGRES_PASSWORD: docgen_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docgen"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - source2doc
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: source2doc-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@source2doc.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - source2doc
+
+  # Redis for event streaming (already used by MVP)
+  redis:
+    image: redis:7-alpine
+    container_name: source2doc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - source2doc
+
+  # Qdrant vector database (already used by MVP)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: source2doc-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - source2doc
+
+  # LocalStack for S3-compatible storage
+  localstack:
+    image: localstack/localstack:4.0
+    container_name: source2doc-localstack
+    env_file:
+      - .env
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: ${S3_REGION}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./localstack-init/init.sh:/etc/localstack/init/ready.d/init.sh
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3 ls"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - source2doc
+
+  # App services (start with: docker compose --profile app up)
+  # Traefik reverse proxy — single ingress on :80 for UI + Gateway.
+  # Routing is driven by Docker provider labels on `gateway` and `ui` services
+  # below (PathPrefix(`/api/v1`) → gateway with priority 10, PathPrefix(`/`) →
+  # ui with priority 1, so the more specific gateway rule wins).
+  # SSE works out of the box: Traefik does not buffer responses, so the
+  # gateway's `/api/v1/streams/*` and `/api/v1/logs/*` SSE endpoints stream
+  # through unchanged.
+  # Dev ports `8003:8003` (gateway) and `3001:3000` (ui) are kept so existing
+  # local workflows keep working alongside the new `:80` ingress.
+  traefik:
+    image: traefik:v3.2
+    container_name: source2doc-traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard (insecure, debug only)
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - source2doc
+    profiles: [app]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.gateway
+    profiles: [app]
+    # host networking so the embeddings call in /api/v1/search can reach
+    # IPv6-only LLM endpoints (matches worker-docgen).
+    network_mode: host
+    volumes:
+      # Gateway runs in `network_mode: host`, so the bundled config must use
+      # localhost-based hostnames; we keep `config.docker.host.yaml` for that
+      # variant alongside the bridge-network `config.docker.yaml`.
+      - ./core/gateway/config.docker.host.yaml:/app/core/gateway/config.yaml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway.rule=PathPrefix(`/api/v1`)"
+      - "traefik.http.routers.gateway.entrypoints=web"
+      - "traefik.http.routers.gateway.priority=10"
+      - "traefik.http.services.gateway.loadbalancer.server.port=8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    # The gateway image has python but no curl, so we probe via stdlib.
+    # /health returns 503 if any dependency probe fails; the healthcheck
+    # surfaces that as "unhealthy" so ops can spot a degraded gateway.
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  worker-docgen:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
+    profiles: [app]
+    command: ["uv", "run", "worker", "docgen"]
+    environment:
+      - WORKER_ID=worker-docgen
+      - AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+      - AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    volumes:
+      - ./core/worker/config.docker.yaml:/app/core/worker/config.yaml:ro
+      - ./deploy/certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    # Worker image has no curl; probe the in-process /health via stdlib.
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8100/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - source2doc
+
+  worker-repos:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
+    profiles: [app]
+    command: ["uv", "run", "worker", "repos"]
+    environment:
+      - WORKER_ID=worker-repos
+      - AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+      - AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    volumes:
+      - ./core/worker/config.docker.yaml:/app/core/worker/config.yaml:ro
+      - ./deploy/certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8101/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - source2doc
+
+  worker-bundler:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
+    profiles: [app]
+    command: ["uv", "run", "worker", "bundler"]
+    environment:
+      - WORKER_ID=worker-bundler
+      - AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+      - AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    volumes:
+      - ./core/worker/config.docker.yaml:/app/core/worker/config.yaml:ro
+      - ./deploy/certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8102/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - source2doc
+
+  worker-codetour:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
+    profiles: [app]
+    command: ["uv", "run", "worker", "codetour"]
+    environment:
+      - WORKER_ID=worker-codetour
+      - AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+      - AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+    volumes:
+      - ./core/worker/config.docker.yaml:/app/core/worker/config.yaml:ro
+      - ./deploy/certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8103/health', timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - source2doc
+
+  ui:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.ui
+    profiles: [app]
+    ports:
+      - "3001:3000"
+    environment:
+      # gateway runs in network_mode: host, so we reach it via the docker host.
+      - GATEWAY_URL=http://host.docker.internal:8003
+      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8003
+    extra_hosts:
+      # Lets the UI proxy reach the host-network'd gateway from inside its
+      # bridge-network container. Required on Linux (Docker Desktop maps
+      # host.docker.internal automatically, but `extra_hosts` covers both).
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ui.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.ui.entrypoints=web"
+      - "traefik.http.routers.ui.priority=1"
+      - "traefik.http.services.ui.loadbalancer.server.port=3000"
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - source2doc
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  localstack_data:
+    driver: local
+
+networks:
+  source2doc:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+        - subnet: fd00:dead:beef::/64

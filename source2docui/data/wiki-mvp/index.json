@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-03-02T21:15:23.843419Z",
+  "navigation": {
+    "overview": "Overview",
+    "getting-started": "Getting Started",
+    "pipeline": {
+      "title": "Pipeline",
+      "children": {
+        "ingest": "Ingestion",
+        "index": "Indexing",
+        "generate": "Generation"
+      }
+    },
+    "agents": {
+      "title": "AI Agents",
+      "children": {
+        "planner": "Planner",
+        "writer": "Writer",
+        "critic": "Critic",
+        "deps": "Dependencies"
+      }
+    },
+    "services": {
+      "title": "Services",
+      "children": {
+        "llm": "LLM Service",
+        "embeddings": "Embeddings",
+        "vectorstore": "Vector Store"
+      }
+    },
+    "configuration": "Configuration"
+  }
+}

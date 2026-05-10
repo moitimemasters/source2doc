@@ -1,0 +1,191 @@
+{
+  "title": "AI Agents",
+  "summary": "AI agents used in the documentation generation process including Planner, Writer, and Critic agents",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 5,
+    "tags": [
+      "agents",
+      "planner",
+      "writer",
+      "critic",
+      "AI"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "AI Agents"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation generation system uses a multi-agent architecture with specialized AI agents that work together to create high-quality documentation. Each agent has a specific role in the pipeline."
+    },
+    {
+      "type": "paragraph",
+      "text": "The system employs three main AI agents:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Planner Agent** - Analyzes the codebase and creates a documentation structure"
+        },
+        {
+          "text": "**Writer Agent** - Generates actual documentation content for each page"
+        },
+        {
+          "text": "**Critic Agent** - Reviews generated pages for quality and accuracy"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Planner Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **Planner Agent** is responsible for analyzing the codebase structure and creating a comprehensive documentation plan. It determines what documentation pages should be created and how they should be organized."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key responsibilities:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Analyzes the codebase structure using search and file listing tools"
+        },
+        {
+          "text": "Creates a navigation structure for the documentation"
+        },
+        {
+          "text": "Generates page specifications for each documentation node"
+        },
+        {
+          "text": "Determines the optimal organization and flow of documentation"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_planner_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, PlannerOutput]:\n    \"\"\"Create planner agent with tools.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=PlannerOutput,\n        instructions=prompt_config.instructions,\n        retries=prompt_config.max_result_retries,\n    )\n    \n    # Register tools with retries from config\n    list_files_retries = prompt_config.tool_retries.get(\"list_files\", 2)\n    search_code_retries = prompt_config.tool_retries.get(\"search_code\", 3)"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Writer Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **Writer Agent** generates the actual documentation content for each page specified in the plan. It uses the codebase as reference material to create accurate and comprehensive documentation."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key features:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Generates documentation content based on page specifications"
+        },
+        {
+          "text": "Uses code search to reference actual implementation details"
+        },
+        {
+          "text": "Follows documentation best practices and style guidelines"
+        },
+        {
+          "text": "Creates examples and usage patterns based on code analysis"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Critic Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **Critic Agent** acts as a quality assurance component, reviewing generated documentation pages for accuracy, completeness, and adherence to standards."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Review capabilities:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Quality scoring** - Assigns a score from 1-10 for each page"
+        },
+        {
+          "text": "**Hallucination detection** - Identifies inaccurate or fabricated information"
+        },
+        {
+          "text": "**Issue identification** - Lists problems with severity levels"
+        },
+        {
+          "text": "**Improvement suggestions** - Provides actionable feedback for enhancement"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_critic_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, CriticOutput]:\n    \"\"\"Create critic agent for reviewing documentation pages.\n    \n    The critic agent analyzes generated documentation pages and provides:\n    - Quality score (1-10)\n    - Hallucination detection\n    - List of issues with severity levels\n    - Suggestions for improvement\n    \n    The critic can use search_code tool to verify facts against the actual codebase.\n    \n    Args:\n        llm_config: LLM configuration\n        prompt_path: Path to critic prompt YAML file\n        \n    Returns:\n        Configured critic agent\n    \"\"\"\n    prompt_config = load_prompt(prompt_path)"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Agent Configuration"
+    },
+    {
+      "type": "paragraph",
+      "text": "Each agent is configured through dedicated configuration classes that inherit from a base `AgentConfig` class. This allows for fine-grained control over each agent's behavior and parameters."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class PlannerConfig(AgentConfig):\n    \"\"\"Configuration for Planner agent.\"\"\"\n    pass\n\n\nclass WriterConfig(AgentConfig):\n    \"\"\"Configuration for Writer agent.\"\"\"\n    pass\n\n\nclass CriticConfig(AgentConfig):\n    \"\"\"Configuration for Critic agent.\"\"\"\n    pass"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Prompt Configuration"
+    },
+    {
+      "type": "paragraph",
+      "text": "Agents use YAML-based prompt files that define their instructions, behavior patterns, and tool retry strategies. The prompt configuration is loaded from specified file paths."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "planner: str = Field(default=\"prompts/planner.yaml\", description=\"Planner prompt file\")\nwriter: str = Field(default=\"prompts/writer.yaml\", description=\"Writer prompt file\")\ncritic: str = Field(default=\"prompts/critic.yaml\", description=\"Critic prompt file\")"
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "info"
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "The multi-agent approach ensures that documentation generation is a collaborative process where each agent specializes in a specific aspect, leading to higher quality and more accurate documentation."
+    }
+  ],
+  "related": [
+    "configuration",
+    "pipeline",
+    "prompts"
+  ]
+}

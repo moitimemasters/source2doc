@@ -1,0 +1,261 @@
+{
+  "title": "Getting Started",
+  "summary": "Complete setup guide for installing and running the documentation generation system",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 8,
+    "tags": [
+      "installation",
+      "setup",
+      "cli",
+      "getting-started"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Getting Started"
+    },
+    {
+      "type": "paragraph",
+      "text": "This guide will help you set up and run the documentation generation system to automatically create comprehensive documentation for your codebase using LLM-powered agents."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Prerequisites"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Python 3.8+** with uv package manager"
+        },
+        {
+          "text": "**Docker** for running Qdrant vector database"
+        },
+        {
+          "text": "**OpenAI API key** or **Yandex GPT API key**"
+        },
+        {
+          "text": "Access to your codebase for documentation generation"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Installation"
+    },
+    {
+      "type": "paragraph",
+      "text": "First, clone the repository and install dependencies:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "# Install dependencies using uv\nuv sync"
+    },
+    {
+      "type": "paragraph",
+      "text": "Start the Qdrant vector database using Docker:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "docker run -p 6333:6333 qdrant/qdrant"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Configuration"
+    },
+    {
+      "type": "paragraph",
+      "text": "Copy the example configuration file and set up your API keys:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "# Copy example configuration\ncp config.example.yaml config.yaml"
+    },
+    {
+      "type": "paragraph",
+      "text": "Set your OpenAI API key as an environment variable:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "export OPENAI_API_KEY=your_key_here"
+    },
+    {
+      "type": "paragraph",
+      "text": "For Yandex GPT, modify the configuration:"
+    },
+    {
+      "type": "code",
+      "lang": "yaml",
+      "code": "llm:\n  provider: yandex\n  model: yandexgpt\n  api_key: ${YANDEX_API_KEY}\n  base_url: https://llm.api.cloud.yandex.net/v1"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Basic Usage"
+    },
+    {
+      "type": "paragraph",
+      "text": "Generate documentation for your codebase with the following command:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "uv run python -m docgen_core.cli generate /path/to/codebase"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Command Options:**"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Option",
+        "Description",
+        "Default"
+      ],
+      "rows": [
+        [
+          "--config",
+          "Path to custom config file",
+          "configs/config.yaml"
+        ],
+        [
+          "--output",
+          "Output directory for documentation",
+          "documentation"
+        ],
+        [
+          "--clear-qdrant",
+          "Clear vector database before indexing",
+          "false"
+        ]
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Example with custom configuration:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "uv run python -m docgen_core.cli generate /path/to/codebase --config my_config.yaml --output docs.json"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "What Happens During Generation"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system follows an event-driven pipeline:"
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        {
+          "text": "**Ingestion**: Your codebase is analyzed and indexed"
+        },
+        {
+          "text": "**Vector Storage**: Code embeddings are stored in Qdrant"
+        },
+        {
+          "text": "**Planning**: AI agent plans the documentation structure"
+        },
+        {
+          "text": "**Generation**: Multiple agents write documentation pages"
+        },
+        {
+          "text": "**Output**: Documentation is saved as structured JSON"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Output Format"
+    },
+    {
+      "type": "paragraph",
+      "text": "The generated documentation includes:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**version**: Documentation format version"
+        },
+        {
+          "text": "**snapshot_hash**: Hash of the codebase for tracking changes"
+        },
+        {
+          "text": "**nodes**: List of documentation pages with content blocks"
+        },
+        {
+          "text": "**citations**: References to the original source code"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Each documentation page contains various content blocks (headings, paragraphs, code examples) with proper citations to the source code."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Troubleshooting"
+    },
+    {
+      "type": "paragraph",
+      "text": "Common issues and solutions:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Qdrant connection error**: Ensure Docker container is running on port 6333"
+        },
+        {
+          "text": "**API key issues**: Verify environment variables are set correctly"
+        },
+        {
+          "text": "**Memory errors**: Consider using smaller codebases or increasing system resources"
+        },
+        {
+          "text": "**Generation timeout**: Check network connectivity and API rate limits"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Use the `--clear-qdrant` flag if you need to reset the vector database:"
+    },
+    {
+      "type": "code",
+      "lang": "bash",
+      "code": "uv run python -m docgen_core.cli generate /path/to/codebase --clear-qdrant"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system provides detailed logging to help diagnose issues. Check the console output for generation progress and any error messages."
+    }
+  ],
+  "related": [
+    "configuration",
+    "architecture",
+    "api-reference"
+  ]
+}

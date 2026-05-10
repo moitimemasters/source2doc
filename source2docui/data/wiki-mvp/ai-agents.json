@@ -1,0 +1,312 @@
+{
+  "title": "AI Agents",
+  "summary": "Specialized AI agents for planning, writing, and reviewing documentation",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 8,
+    "tags": [
+      "agents",
+      "planner",
+      "writer",
+      "critic",
+      "ai",
+      "documentation"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "text": "AI Agents"
+    },
+    {
+      "type": "paragraph",
+      "text": "The AI Agents module implements a three-stage documentation generation pipeline using specialized agents for planning, writing, and reviewing documentation."
+    },
+    {
+      "type": "paragraph",
+      "text": "Architecture Overview"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system uses a **multi-agent architecture** where each agent has a specific role in the documentation generation process:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Planner Agent**: Creates the overall documentation structure and page specifications"
+        },
+        {
+          "text": "**Writer Agent**: Generates individual documentation pages based on the plan"
+        },
+        {
+          "text": "**Critic Agent**: Reviews generated pages for quality and accuracy"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "This pipeline ensures high-quality documentation through iterative refinement and quality control."
+    },
+    {
+      "type": "paragraph",
+      "text": "Planner Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The Planner Agent is responsible for analyzing the codebase and creating a comprehensive documentation plan."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key Responsibilities:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Analyzes the codebase structure and identifies key components"
+        },
+        {
+          "text": "Creates a navigation hierarchy for the documentation"
+        },
+        {
+          "text": "Generates page specifications with titles, descriptions, and search queries"
+        },
+        {
+          "text": "Determines the optimal documentation structure"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "**Tools Available:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "`list_files` - explores the codebase structure"
+        },
+        {
+          "text": "`search_code` - finds relevant code snippets"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_planner_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, PlannerOutput]:\n    \"\"\"Create planner agent with tools.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=PlannerOutput,\n        instructions=prompt_config[\"instructions\"],\n    )\n    \n    # Get retry config from prompt file\n    tool_retries = prompt_config.get(\"tool_retries\", {})\n    list_files_retries = tool_retries.get(\"list_files\", 2)\n    search_code_retries = tool_retries.get(\"search_code\", 3)\n    \n    # Register tools with retries from config\n    agent.tool(retries=list_files_retries)(list_files)\n    agent.tool(retries=search_code_retries)(search_code)\n    \n    return agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "Writer Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The Writer Agent generates individual documentation pages based on the specifications provided by the Planner Agent."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key Responsibilities:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Writes comprehensive documentation pages using codebase context"
+        },
+        {
+          "text": "Incorporates feedback from previous iterations when retrying"
+        },
+        {
+          "text": "Uses search tools to gather relevant code examples and explanations"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "**Tools Available:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "`search_code` - finds relevant code for documentation"
+        },
+        {
+          "text": "`read_file` - reads complete files for context"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_writer_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, DocPage]:\n    \"\"\"Create writer agent with tools.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=DocPage,\n        instructions=prompt_config[\"instructions\"],\n    )\n    \n    # Get retry config from prompt file\n    tool_retries = prompt_config.get(\"tool_retries\", {})\n    search_code_retries = tool_retries.get(\"search_code\", 3)\n    read_file_retries = tool_retries.get(\"read_file\", 2)\n    \n    # Register tools with retries from config\n    agent.tool(retries=search_code_retries)(search_code)\n    agent.tool(retries=read_file_retries)(read_file)\n    \n    return agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "Critic Agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The Critic Agent reviews generated documentation pages for quality, accuracy, and completeness."
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key Responsibilities:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Evaluates documentation quality with a 1-10 score"
+        },
+        {
+          "text": "Detects hallucinations and fabricated information"
+        },
+        {
+          "text": "Identifies issues with severity levels (critical, major, minor)"
+        },
+        {
+          "text": "Provides suggestions for improvement"
+        },
+        {
+          "text": "Verifies facts against the actual codebase"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "**Tools Available:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "`search_code` - fact-checks documentation against code"
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_critic_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, CriticOutput]:\n    \"\"\"Create critic agent for reviewing documentation pages.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=CriticOutput,\n        instructions=prompt_config[\"instructions\"],\n    )\n    \n    # Get retry config from prompt file\n    tool_retries = prompt_config.get(\"tool_retries\", {})\n    search_code_retries = tool_retries.get(\"search_code\", 2)\n    \n    # Register search_code tool for fact-checking\n    agent.tool(retries=search_code_retries)(search_code)\n    \n    return agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "Agent Pipeline"
+    },
+    {
+      "type": "paragraph",
+      "text": "The agents work together in a coordinated pipeline managed by the Worker class:"
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        {
+          "text": "1. **Planning Phase**: Planner Agent creates the documentation structure"
+        },
+        {
+          "text": "2. **Writing Phase**: Writer Agent generates individual pages"
+        },
+        {
+          "text": "3. **Review Phase**: Critic Agent evaluates and provides feedback"
+        },
+        {
+          "text": "4. **Revision Phase**: Writer Agent revises pages based on feedback (if needed)"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key Configuration Parameters:**"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Parameter",
+        "Default",
+        "Description"
+      ],
+      "rows": [
+        [
+          "max_page_retries",
+          "3",
+          "Maximum number of revision attempts per page"
+        ],
+        [
+          "max_hallucination_retries",
+          "2",
+          "Maximum retries for hallucinated content"
+        ],
+        [
+          "min_page_score",
+          "7",
+          "Minimum quality score to accept a page"
+        ]
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Quality Control"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system implements robust quality control through:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Automatic retries** for low-scoring pages"
+        },
+        {
+          "text": "**Hallucination detection** with limited retries"
+        },
+        {
+          "text": "**Fact-checking** against the actual codebase"
+        },
+        {
+          "text": "**Iterative improvement** based on detailed feedback"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Each page goes through multiple review cycles until it meets quality standards or reaches the maximum retry limit."
+    },
+    {
+      "type": "paragraph",
+      "text": "Related Topics"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Configuration** - Agent configuration and prompt management"
+        },
+        {
+          "text": "**Tools** - Available tools for agent interactions"
+        },
+        {
+          "text": "**Worker Pipeline** - Event-driven documentation generation workflow"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "configuration",
+    "tools",
+    "worker-pipeline"
+  ]
+}

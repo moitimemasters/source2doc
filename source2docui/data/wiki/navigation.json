@@ -1,0 +1,69 @@
+{
+  "items": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "path": "/wiki/getting-started",
+      "icon": "bookmark",
+      "children": [
+        {
+          "id": "installation",
+          "title": "Installation",
+          "path": "/wiki/getting-started/installation"
+        },
+        {
+          "id": "first-page",
+          "title": "Your First Page",
+          "path": "/wiki/getting-started/first-page"
+        }
+      ]
+    },
+    {
+      "id": "components",
+      "title": "Components",
+      "path": "/wiki/components",
+      "icon": "layers",
+      "children": [
+        {
+          "id": "blocks",
+          "title": "Block Types",
+          "path": "/wiki/components/blocks"
+        },
+        {
+          "id": "code-blocks",
+          "title": "Code Blocks",
+          "path": "/wiki/components/code-blocks"
+        },
+        {
+          "id": "diagrams",
+          "title": "Mermaid Diagrams",
+          "path": "/wiki/components/diagrams"
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "title": "Examples",
+      "path": "/wiki/examples",
+      "icon": "sparkles"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced",
+      "path": "/wiki/advanced",
+      "icon": "zap",
+      "children": [
+        {
+          "id": "tables",
+          "title": "Tables",
+          "path": "/wiki/advanced/tables"
+        },
+        {
+          "id": "images",
+          "title": "Images",
+          "path": "/wiki/advanced/images"
+        }
+      ]
+    }
+  ]
+}

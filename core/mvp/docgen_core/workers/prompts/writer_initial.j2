@@ -1,0 +1,36 @@
+Write documentation page:
+Title: {{ title }}
+Description: {{ description }}
+Search queries: {{ search_queries | join(', ') }}
+
+Repository facts (anchor every claim to these — do NOT lean on training priors):
+- Dominant language: {{ dominant_language }}
+- Stick to {{ dominant_language }} idioms, file extensions, build tools and ecosystem terminology.
+- Do NOT mention Python tooling (requirements.txt, pyproject.toml, pip, poetry, setup.py) unless dominant_language is "python".
+- Do NOT mention JavaScript tooling (package.json, npm, yarn, tsconfig.json) unless dominant_language is "javascript" or "typescript".
+
+{% if preloaded_files -%}
+<preloaded_files>
+The following files have been read for you. DO NOT call read_file on them
+again — their contents are right here. Use them as your primary grounding;
+spend tool budget only on additional files you genuinely need.
+
+{% for f in preloaded_files -%}
+=== FILE: {{ f.path }}{% if f.truncated %} (first {{ f.content.split('\n') | length }} of {{ f.total_lines }} lines){% endif %} ===
+```{{ dominant_language }}
+{{ f.content }}
+```
+
+{% endfor -%}
+</preloaded_files>
+
+{% endif -%}
+If a search returns an empty result, the topic is genuinely absent from this
+codebase. Either rephrase the query with different keywords or omit that
+subsection — never invent code, file paths, classes, or functions that you
+have not seen in search_code or read_file results.
+
+If after honest searching you cannot ground the page in real code from this
+repository, return a DocPage whose summary starts with "<no_content/>" and
+whose blocks are empty. The pipeline will mark the page as skipped instead
+of saving placeholder text.

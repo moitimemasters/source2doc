@@ -1,0 +1,211 @@
+{
+  "id": "advanced",
+  "title": "Advanced",
+  "description": "Advanced wiki features and techniques",
+  "metadata": {
+    "lastUpdated": "2024-02-21",
+    "readingTime": 6,
+    "tags": ["advanced", "tables", "diagrams"],
+    "categories": ["Documentation", "Advanced"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Advanced Features"
+    },
+    {
+      "type": "paragraph",
+      "text": "Explore advanced features of the wiki system including tables, images, quotes, and more."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Tables"
+    },
+    {
+      "type": "paragraph",
+      "text": "Tables are useful for presenting data in a structured format. Here's an example:"
+    },
+    {
+      "type": "table",
+      "headers": ["Feature", "Description", "Status"],
+      "rows": [
+        ["Headings", "Multiple heading levels (h1-h6)", "✓"],
+        ["Paragraphs", "Rich text content", "✓"],
+        ["Code Blocks", "Syntax highlighting", "✓"],
+        ["Lists", "Ordered and unordered", "✓"],
+        ["Tables", "Tabular data display", "✓"],
+        ["Images", "Embedded images with captions", "✓"],
+        ["Quotes", "Citation and quote blocks", "✓"],
+        ["Callouts", "Alert and info boxes", "✓"],
+        ["Mermaid", "Interactive diagrams", "✓"]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Architecture Diagrams"
+    },
+    {
+      "type": "paragraph",
+      "text": "Mermaid diagrams allow you to create visualizations of complex systems directly in your documentation."
+    },
+    {
+      "type": "mermaid",
+      "diagram": "graph LR\n    A[User] -->|Navigates| B[Wiki Page]\n    B -->|Renders| C[Content Renderer]\n    C -->|Maps blocks| D[Block Components]\n    D -->|Displays| E[Browser]\n    B -->|Loads from| F[JSON Data]\n    F -->|Stored in| G[Data Directory]"
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "Mermaid diagrams are rendered client-side and support flowcharts, sequence diagrams, class diagrams, state diagrams, and more."
+    }
+  ],
+  "children": [
+    {
+      "id": "tables",
+      "title": "Tables",
+      "metadata": {
+        "lastUpdated": "2024-02-20",
+        "readingTime": 3,
+        "tags": ["tables", "data", "formatting"],
+        "categories": ["Advanced", "Tables"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Working with Tables"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tables are a great way to organize and present structured data in your wiki pages."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Language Comparison"
+        },
+        {
+          "type": "table",
+          "headers": ["Language", "Type System", "Async Support", "Performance"],
+          "rows": [
+            ["JavaScript", "Dynamic", "Native (async/await)", "Good"],
+            ["TypeScript", "Static", "Native (async/await)", "Good"],
+            ["Python", "Dynamic", "asyncio", "Good"],
+            ["Go", "Static", "Goroutines", "Excellent"],
+            ["Rust", "Static", "Tokio", "Excellent"]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Browser Support"
+        },
+        {
+          "type": "table",
+          "headers": ["Browser", "Chrome", "Firefox", "Safari", "Edge"],
+          "rows": [
+            ["HTML5", "✓", "✓", "✓", "✓"],
+            ["CSS Grid", "✓", "✓", "✓", "✓"],
+            ["CSS Flexbox", "✓", "✓", "✓", "✓"],
+            ["JavaScript ES6", "✓", "✓", "✓", "✓"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "images",
+      "title": "Images",
+      "metadata": {
+        "lastUpdated": "2024-02-21",
+        "readingTime": 4,
+        "tags": ["images", "media", "best-practices"],
+        "categories": ["Advanced", "Media"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Working with Images"
+        },
+        {
+          "type": "paragraph",
+          "text": "Images can be embedded in your wiki pages to illustrate concepts and provide visual context."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Image Best Practices"
+        },
+        {
+          "type": "list",
+          "ordered": true,
+          "items": [
+            {"text": "Use descriptive alt text for accessibility"},
+            {"text": "Keep image files reasonably sized for web"},
+            {"text": "Use appropriate file formats (PNG for graphics, JPG for photos)"},
+            {"text": "Provide captions to explain the image context"},
+            {"text": "Ensure images are responsive on mobile devices"}
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Supported Formats"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "PNG - Best for graphics and screenshots"},
+            {"text": "JPG - Best for photographs"},
+            {"text": "WebP - Modern format with better compression"},
+            {"text": "SVG - Vector graphics, scalable"}
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Example Image"
+        },
+        {
+          "type": "image",
+          "src": "/placeholder-image.jpg",
+          "alt": "Example placeholder image",
+          "caption": "This is an example image with a caption"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Quotes and Citations"
+        },
+        {
+          "type": "quote",
+          "text": "The only way to do great work is to love what you do.",
+          "author": "Steve Jobs"
+        },
+        {
+          "type": "quote",
+          "text": "Innovation distinguishes between a leader and a follower.",
+          "author": "Steve Jobs"
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Tips for Documentation"
+        },
+        {
+          "type": "callout",
+          "variant": "success",
+          "text": "Use images to break up large blocks of text and help readers understand concepts visually."
+        },
+        {
+          "type": "callout",
+          "variant": "info",
+          "text": "Remember to optimize images for web to ensure your documentation loads quickly."
+        }
+      ]
+    }
+  ]
+}

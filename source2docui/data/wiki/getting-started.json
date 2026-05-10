@@ -1,0 +1,254 @@
+{
+  "id": "getting-started",
+  "title": "Getting Started",
+  "description": "Learn the basics of our wiki system",
+  "tooltips": [
+    {
+      "term": "wiki",
+      "definition": "A collaborative website that allows users to add, modify, or delete content via a web browser"
+    },
+    {
+      "term": "React",
+      "definition": "A JavaScript library for building user interfaces, developed by Facebook"
+    },
+    {
+      "term": "TypeScript",
+      "definition": "A strongly typed programming language that builds on JavaScript"
+    },
+    {
+      "term": "Next.js",
+      "definition": "A React framework for building full-stack web applications with server-side rendering"
+    },
+    {
+      "term": "API",
+      "definition": "Application Programming Interface - a set of rules that allows different software applications to communicate"
+    },
+    {
+      "term": "JSON",
+      "definition": "JavaScript Object Notation - a lightweight data interchange format"
+    },
+    {
+      "term": "CLI",
+      "definition": "Command Line Interface - a text-based interface for interacting with software"
+    },
+    {
+      "term": "npm",
+      "definition": "Node Package Manager - the default package manager for Node.js"
+    },
+    {
+      "term": "pnpm",
+      "definition": "Performant npm - a fast, disk space efficient package manager"
+    },
+    {
+      "term": "Mermaid",
+      "definition": "A JavaScript-based diagramming and charting tool that uses Markdown-inspired text definitions"
+    }
+  ],
+  "metadata": {
+    "lastUpdated": "2024-02-20",
+    "readingTime": 5,
+    "tags": ["introduction", "basics", "tutorial"],
+    "categories": ["Documentation", "Getting Started"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Getting Started with Wiki"
+    },
+    {
+      "type": "paragraph",
+      "text": "Welcome to the wiki documentation. This guide will help you understand the core concepts and get started with the system."
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "This is a minimalist wiki viewer built with React and TypeScript. It supports various content types including code blocks, diagrams, and more."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "What is a Wiki?"
+    },
+    {
+      "type": "paragraph",
+      "text": "A wiki is a knowledge base or documentation system that allows you to organize information in a hierarchical structure. Each page can have child pages, creating a tree-like navigation structure."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Key Features"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {"text": "Hierarchical page structure with unlimited nesting"},
+        {"text": "Rich content blocks including headings, lists, code, tables, and images"},
+        {"text": "Syntax highlighting for code blocks with multiple language support"},
+        {"text": "Mermaid diagram support for visualizations"},
+        {"text": "Minimalist design with clean typography"},
+        {"text": "Responsive layout that works on mobile and desktop"}
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Supported Content Types"
+    },
+    {
+      "type": "paragraph",
+      "text": "The wiki supports the following types of content blocks:"
+    },
+    {
+      "type": "table",
+      "headers": ["Block Type", "Description", "Example Use"],
+      "rows": [
+        ["Heading", "Organize content into sections", "Section titles, chapter headings"],
+        ["Paragraph", "Regular text content", "Explanations, descriptions"],
+        ["Code", "Syntax-highlighted code snippets", "Code examples, implementation details"],
+        ["List", "Ordered or unordered lists", "Steps, features, bullet points"],
+        ["Table", "Data in tabular format", "Comparisons, specifications"],
+        ["Image", "Embedded images", "Diagrams, screenshots"],
+        ["Quote", "Highlighted quotes", "Important statements, citations"],
+        ["Callout", "Alert boxes (info, warning, etc)", "Important notes, warnings"],
+        ["Mermaid", "Interactive diagrams", "Flowcharts, graphs, sequences"],
+        ["Cut", "Collapsible content sections", "FAQs, detailed explanations, optional content"],
+        ["Steps", "Step-by-step guides", "Tutorials, installation guides, workflows"]
+      ]
+    }
+  ],
+  "children": [
+    {
+      "id": "installation",
+      "title": "Installation",
+      "description": "How to set up the wiki system",
+      "metadata": {
+        "lastUpdated": "2024-02-19",
+        "readingTime": 4,
+        "tags": ["installation", "setup", "configuration"],
+        "categories": ["Getting Started", "Setup"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Installation"
+        },
+        {
+          "type": "paragraph",
+          "text": "Follow these steps to install and set up the wiki system in your project."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Prerequisites"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            {"text": "Node.js 18 or later"},
+            {"text": "npm, yarn, or pnpm package manager"},
+            {"text": "Next.js 13 or later"},
+            {"text": "React 18 or later"}
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Installation Steps"
+        },
+        {
+          "type": "steps",
+          "items": [
+            {
+              "title": "Clone or Create Project",
+              "description": "Clone the repository or create a new Next.js project using `npx create-next-app@latest`"
+            },
+            {
+              "title": "Install Dependencies",
+              "description": "Install required dependencies including `mermaid`, `shiki` for syntax highlighting, and UI components"
+            },
+            {
+              "title": "Set Up Data Structure",
+              "description": "Create the data structure in `/data/wiki/` directory. Each JSON file represents a wiki page with its content blocks"
+            },
+            {
+              "title": "Configure Navigation",
+              "description": "Add navigation config in `/config/navigation.json` to define the sidebar menu structure"
+            },
+            {
+              "title": "Set Up Routes",
+              "description": "Set up the wiki routes and components in your Next.js app directory structure"
+            },
+            {
+              "title": "Start Development",
+              "description": "Start the development server with `pnpm dev` and open `http://localhost:3000` in your browser"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Quick Start"
+        },
+        {
+          "type": "code",
+          "lang": "bash",
+          "code": "# Install dependencies\npnpm install\n\n# Start development server\npnpm dev\n\n# Open http://localhost:3000 in your browser"
+        },
+        {
+          "type": "callout",
+          "variant": "success",
+          "text": "You're all set! Check out the documentation pages to learn more about using the wiki."
+        }
+      ]
+    },
+    {
+      "id": "first-page",
+      "title": "Your First Page",
+      "description": "How to add a new wiki page and link it in navigation",
+      "metadata": {
+        "lastUpdated": "2024-02-18",
+        "readingTime": 2,
+        "tags": ["tutorial", "pages", "navigation"],
+        "categories": ["Getting Started", "Tutorial"]
+      },
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "text": "Your First Page"
+        },
+        {
+          "type": "paragraph",
+          "text": "This page exists to demonstrate nested routes like /wiki/getting-started/first-page and to ensure sidebar navigation works."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Add a JSON page"
+        },
+        {
+          "type": "paragraph",
+          "text": "In this project, wiki content is stored as JSON under /data/wiki. Root pages can include nested child pages via the children field."
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "text": "Link it from navigation"
+        },
+        {
+          "type": "paragraph",
+          "text": "Add an entry to /config/navigation.json that points to /wiki/getting-started/first-page."
+        },
+        {
+          "type": "callout",
+          "variant": "info",
+          "text": "Tip: headings automatically get ids derived from their text. The outline on the right links to these ids."
+        }
+      ]
+    }
+  ]
+}

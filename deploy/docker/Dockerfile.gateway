@@ -1,0 +1,7 @@
+FROM python:3.13-slim
+RUN pip install --no-cache-dir uv
+WORKDIR /app
+COPY core/ core/
+RUN cd core && uv sync --package source2doc-gateway --no-dev --frozen
+WORKDIR /app/core/gateway
+CMD ["uv", "run", "gateway", "--config", "config.yaml"]

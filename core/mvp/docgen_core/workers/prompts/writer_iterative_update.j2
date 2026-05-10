@@ -1,0 +1,32 @@
+You are updating an existing documentation page. The prior page body is below, along with the diffs of the source files that changed since it was last written. Your job is to produce an updated DocPage that reflects the changes — keeping every section that is still accurate verbatim, rewriting only what the diff invalidates or augments.
+
+Title: {{ title }}
+Description: {{ description }}
+Search queries: {{ search_queries | join(', ') }}
+
+Repository facts (anchor every claim to these — do NOT lean on training priors):
+- Dominant language: {{ dominant_language }}
+- Stick to {{ dominant_language }} idioms, file extensions, build tools and ecosystem terminology.
+
+Update rules:
+- Preserve every passage that is still factually correct after the diff. Do not paraphrase for its own sake.
+- Update only what the diff invalidates: changed signatures, new parameters, removed behaviour, renamed types.
+- If the diff adds new behaviour relevant to this page (e.g. a new public method), document it with the same depth as the existing prose.
+- Do not invent code, file paths, classes, or functions that are not in the diff, the prior body, or your search_code / read_file results.
+- Keep the same headings/structure unless the change requires removing an obsolete section. If you remove a section, briefly note in summary that it was deprecated.
+
+Prior page body (canonical — do not contradict without diff evidence):
+```json
+{{ prior_body_json }}
+```
+
+Changed source files for this page:
+{% for entry in changed_files %}
+- File: {{ entry.path }}
+  Diff:
+  ```diff
+  {{ entry.diff }}
+  ```
+{% endfor %}
+
+If after honest re-reading you cannot ground the page in the prior body or the diff, return a DocPage whose summary starts with "<no_content/>" — the pipeline will mark the page as skipped instead of saving placeholder text.

@@ -1,0 +1,163 @@
+{
+  "title": "Services",
+  "summary": "Service protocols and implementations for LLM, embeddings, vector storage, and event handling",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 7,
+    "tags": [
+      "services",
+      "llm",
+      "embeddings",
+      "vectorstore",
+      "events"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Services"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation generation system uses a service-oriented architecture with dependency injection for key components like LLM, embeddings, vector storage, and event handling. All services follow protocol-based interfaces for easy testing and extensibility."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Core Service Protocols"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system defines two main service protocols that all implementations must adhere to:"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Service",
+        "Protocol",
+        "Key Methods"
+      ],
+      "rows": [
+        [
+          "EmbeddingsService",
+          "docgen_core.services.EmbeddingsService",
+          "embed_text(), embed_batch()"
+        ],
+        [
+          "VectorStoreService",
+          "docgen_core.services.VectorStoreService",
+          "upsert(), search(), clear()"
+        ]
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "These protocols enable dependency injection and make it easy to swap implementations for different providers or testing scenarios."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "LLM Service"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **LLM service** creates OpenAI-compatible models using pydantic-ai with Yandex transport support:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_llm_model(config: LLMConfig) -> OpenAIChatModel:\n    \"\"\"Create pydantic-ai model with Yandex transport.\"\"\"\n    transport = YandexHTTPTransport(verify=False)\n    http_client = httpx.AsyncClient(transport=transport)\n    \n    provider = OpenAIProvider(\n        base_url=config.base_url,\n        api_key=config.api_key,\n        http_client=http_client,\n    )\n    \n    return OpenAIChatModel(config.model, provider=provider)"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key features:**\n- Supports Yandex transport for API calls\n- Configurable base URL and API key\n- Uses async HTTP client for performance"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Embeddings Service"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **embeddings service** provides text embedding capabilities using OpenAI-compatible APIs:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class OpenAIEmbeddings:\n    \"\"\"OpenAI embeddings service.\"\"\"\n    \n    def __init__(self, config: EmbeddingsConfig) -> None:\n        self.config = config\n        transport = YandexHTTPTransport(verify=False)\n        http_client = httpx.AsyncClient(transport=transport)\n        self.client = AsyncOpenAI(\n            api_key=config.api_key,\n            base_url=config.base_url,\n            http_client=http_client,\n        )\n    \n    async def embed_text(self, text: str) -> list[float]:\n        \"\"\"Generate embedding for a single text.\"\"\"\n        response = await self.client.embeddings.create(\n            model=self.config.model,\n            input=text,\n        )\n        return response.data[0].embedding"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Methods:**\n- `embed_text()`: Generate embedding for single text\n- `embed_batch()`: Generate embeddings for multiple texts in batch"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Vector Store Service"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **vector store service** manages storage and retrieval of code chunks with their embeddings using Qdrant:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class QdrantVectorStore:\n    \"\"\"Qdrant vector store service.\"\"\"\n    \n    def __init__(self, config: QdrantConfig, vector_size: int = 1536) -> None:\n        self.config = config\n        self.vector_size = vector_size\n        self.client = AsyncQdrantClient(\n            url=config.url,\n            api_key=config.api_key,\n        )"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key operations:**\n- `ensure_collection()`: Creates collection if it doesn't exist\n- `upsert()`: Inserts or updates chunks with embeddings\n- `search()`: Finds similar chunks using vector similarity\n- `clear()`: Deletes and recreates the collection"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Event Bus"
+    },
+    {
+      "type": "paragraph",
+      "text": "The **event bus** provides a simple pub/sub system for tracking pipeline events:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class SimpleEventBus:\n    \"\"\"In-memory event bus implementation.\"\"\"\n    \n    def __init__(self) -> None:\n        self._events: list[dict] = []\n        self.logger = get_logger(__name__)\n    \n    async def emit(self, event_type: str, data: dict) -> None:\n        \"\"\"Emit an event.\"\"\"\n        event = {\n            \"type\": event_type,\n            \"data\": data,\n        }\n        self._events.append(event)\n        self.logger.info(\"event_emitted\", event_type=event_type)"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Events tracked:**\n- `generation.requested`: When documentation generation starts\n- `ingest.completed`: When code ingestion completes\n- Various agent-specific events"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Dependency Injection"
+    },
+    {
+      "type": "paragraph",
+      "text": "Services are injected into agents and workers through the `DocGenDeps` dataclass:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "@dataclass\nclass DocGenDeps:\n    \"\"\"Dependencies for documentation generation agents.\"\"\"\n    \n    embeddings: EmbeddingsService\n    vectorstore: VectorStoreService\n    chunks_index: dict[str, CodeChunk]\n    event_bus: EventBus\n    generation_config: GenerationConfig\n    target_path: Path"
+    },
+    {
+      "type": "paragraph",
+      "text": "This approach enables:\n- **Testability**: Easy to mock services for testing\n- **Flexibility**: Swap implementations without changing business logic\n- **Observability**: Event bus tracks all operations"
+    },
+    {
+      "type": "paragraph",
+      "text": "All services are **async** and designed for high-throughput document generation pipelines."
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "info"
+    }
+  ],
+  "related": [
+    "configuration",
+    "agents",
+    "pipeline"
+  ]
+}

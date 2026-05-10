@@ -1,0 +1,54 @@
+# Example GitHub Actions workflow that triggers an iterative docgen
+# rebuild whenever the default branch advances. Drop this file into
+# ``.github/workflows/iterative-docs.yml`` (drop the ``.example``
+# extension) in the repo whose docs you want to keep up to date, then
+# fill in the four secrets:
+#
+#   GATEWAY_URL         the source2doc gateway base URL (publicly
+#                       reachable from GitHub Actions runners)
+#   ADMIN_PASSWORD      gateway admin password
+#   REPO_ID             this repository's UUID inside the gateway
+#                       (look it up via GET /api/v1/repos)
+#   PRESET              optional named LLM/embeddings preset
+#
+# The job uses ``before`` (push event's previous SHA) and ``after``
+# (the new HEAD) as the commit range; the worker computes the file
+# diff itself via GitContext, so this YAML stays clean.
+
+name: Update documentation (iterative)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  iterative-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Skip on initial push
+        if: github.event.before == '0000000000000000000000000000000000000000'
+        run: |
+          echo "::notice::Skipping iterative run on first push to branch."
+          exit 0
+
+      - name: Checkout source2docinfra scripts
+        uses: actions/checkout@v4
+        with:
+          repository: your-org/source2docinfra
+          path: source2docinfra
+          sparse-checkout: scripts
+
+      - name: Trigger iterative documentation rebuild
+        env:
+          GATEWAY_URL:    ${{ secrets.DOCGEN_GATEWAY_URL }}
+          ADMIN_PASSWORD: ${{ secrets.DOCGEN_ADMIN_PASSWORD }}
+          REPO_ID:        ${{ secrets.DOCGEN_REPO_ID }}
+          PRESET:         ${{ secrets.DOCGEN_PRESET }}
+          FROM_COMMIT:    ${{ github.event.before }}
+          TO_COMMIT:      ${{ github.event.after }}
+        run: |
+          chmod +x source2docinfra/scripts/iterative-docs-ci.sh
+          GENERATION_ID=$(source2docinfra/scripts/iterative-docs-ci.sh)
+          echo "::notice::Iterative bundle ready: $GATEWAY_URL/wiki/$GENERATION_ID"
+          echo "generation_id=$GENERATION_ID" >> "$GITHUB_OUTPUT"

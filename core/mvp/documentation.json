@@ -1,0 +1,709 @@
+{
+  "version": "docbundle.v1",
+  "snapshot_hash": "8a3f076a15a978a9",
+  "nodes": [
+    {
+      "node_id": "cli-configuration",
+      "title": "CLI and Configuration",
+      "summary": "Command-line interface entry point and configuration loading system",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The CLI interface is built using Typer and provides a command-line entry point for generating documentation. The main entry point is the `main()` function that calls the Typer app.",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "list",
+          "content": "The `generate` command accepts several parameters:\n- `path`: Path to the codebase to document (required)\n- `config`: Path to configuration file (default: configs/config.yaml)\n- `output`: Output file for documentation (default: documentation.json)\n- `clear_qdrant`: Flag to clear Qdrant collection before indexing (optional)",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "def main() -> None:\n    \"\"\"Entry point.\"\"\"\n    app()",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The configuration system uses Pydantic settings with environment variable support. The `AppConfig` class defines the main application configuration structure with nested models for different components.",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "list",
+          "content": "Configuration loading is handled by `load_config()` function which:\n- Reads YAML configuration file\n- Substitutes environment variables in format ${VAR}\n- Parses YAML and validates using AppConfig model\n- Supports .env file loading through Pydantic settings",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "class AppConfig(BaseSettings):\n    \"\"\"Main application configuration.\"\"\"\n    \n    model_config = SettingsConfigDict(\n        env_file=\".env\",\n        env_file_encoding=\"utf-8\",\n        env_nested_delimiter=\"__\",\n        extra=\"ignore\",\n    )\n    \n    llm: LLMConfig\n    embeddings: EmbeddingsConfig\n    qdrant: QdrantConfig\n    redis: RedisConfig = Field(default_factory=RedisConfig)\n    worker: WorkerConfig = Field(default_factory=WorkerConfig)\n    logging: LoggingConfig = Field(default_factory=LoggingConfig)\n    prompts: PromptsConfig = Field(default_factory=PromptsConfig)\n    generation: GenerationConfig = Field(default_factory=GenerationConfig)",
+          "citations": [],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "def load_config(config_path: str | Path) -> AppConfig:\n    \"\"\"Load configuration from YAML file.\n    \n    Args:\n        config_path: Path to YAML configuration file\n        \n    Returns:\n        Validated AppConfig instance\n    \"\"\"\n    config_path = Path(config_path)\n    \n    with open(config_path, \"r\", encoding=\"utf-8\") as f:\n        content = f.read()\n    \n    # Substitute environment variables in raw text\n    content = _substitute_env_vars(content)\n    \n    # Parse YAML and validate\n    config_data = yaml.safe_load(content)\n    return AppConfig(**config_data)",
+          "citations": [],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/cli.py",
+            "start_line": 83,
+            "end_line": 85
+          },
+          "relevance": "Main CLI entry point function",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/cli.py",
+            "start_line": 12,
+            "end_line": 19
+          },
+          "relevance": "CLI command definition with parameters",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/config/settings.py",
+            "start_line": 72,
+            "end_line": 95
+          },
+          "relevance": "AppConfig class definition with environment configuration",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/config/loader.py",
+            "start_line": 17,
+            "end_line": 38
+          },
+          "relevance": "Configuration loading function with environment variable substitution",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "node_id": "pipeline-architecture",
+      "title": "Pipeline Architecture",
+      "summary": "Event-driven documentation generation pipeline with code ingestion, vector indexing, and agent-based documentation creation",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The documentation generation pipeline is implemented as an event-driven system using the `Worker` class. The worker manages the entire lifecycle from code ingestion to final documentation bundle creation, coordinating with various services through an event bus.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 23,
+                "end_line": 35
+              },
+              "relevance": "Worker class initialization with event bus, config, embeddings and vectorstore services",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "list",
+          "content": "The pipeline follows a sequential flow of events:\n- generation.requested: Start the process\n- ingest.completed: Codebase ingestion finished\n- index.completed: Vector indexing completed\n- plan.created: Documentation plan generated\n- node.write_requested: Individual node generation requested\n- node.completed: Node documentation completed\n- generation.completed: Final bundle created",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 43,
+                "end_line": 49
+              },
+              "relevance": "Event subscription setup showing the pipeline flow",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The ingestion phase uses `ingest_codebase()` to discover Python files in the target path and split them into manageable chunks. Each file is processed to create `CodeChunk` objects with file spans and content.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 49,
+                "end_line": 71
+              },
+              "relevance": "Code ingestion function that processes files and creates chunks",
+              "metadata": {}
+            },
+            {
+              "span": {
+                "file_path": "docgen_core/pipeline/ingest.py",
+                "start_line": 49,
+                "end_line": 58
+              },
+              "relevance": "Ingest codebase function implementation",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The indexing phase uses `index_chunks()` to generate embeddings for each chunk and store them in the vector database. This enables semantic search capabilities for the documentation generation agents.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 84,
+                "end_line": 96
+              },
+              "relevance": "Indexing function call with embeddings and vectorstore services",
+              "metadata": {}
+            },
+            {
+              "span": {
+                "file_path": "docgen_core/pipeline/index.py",
+                "start_line": 20,
+                "end_line": 36
+              },
+              "relevance": "Index chunks function definition with concurrent processing",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The pipeline is designed as an event-driven system where each phase emits events upon completion, allowing for flexible extension and monitoring of the documentation generation process.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 1,
+                "end_line": 20
+              },
+              "relevance": "Worker class definition showing event-driven architecture",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 23,
+            "end_line": 35
+          },
+          "relevance": "Worker class initialization with event bus, config, embeddings and vectorstore services",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 43,
+            "end_line": 49
+          },
+          "relevance": "Event subscription setup showing the pipeline flow",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 84,
+            "end_line": 96
+          },
+          "relevance": "Indexing function call with embeddings and vectorstore services",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "node_id": "ai-agents",
+      "title": "AI Agents",
+      "summary": "AI agents for planning documentation structure and writing content",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The documentation system uses two specialized AI agents: a Planner agent that creates the documentation structure and a Writer agent that generates the actual content. The Planner agent is responsible for analyzing the codebase and creating a structured plan for documentation generation.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/agents/planner.py",
+                "start_line": 1,
+                "end_line": 1
+              },
+              "relevance": "Planner agent module definition and purpose",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "def create_planner_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, DocPlan]:\n    \"\"\"Create planner agent with tools.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=DocPlan,\n        instructions=prompt_config[\"instructions\"],\n    )\n    \n    # Get retry config from prompt file\n    tool_retries = prompt_config.get(\"tool_retries\", {})\n    list_files_retries = tool_retries.get(\"list_files\", 2)\n    search_code_retries = tool_retries.get(\"search_code\", 3)\n    \n    # Register tools with retries from config\n    agent.tool(retries=list_files_retries)(list_files)\n    agent.tool(retries=search_code_retries)(search_code)\n    \n    return agent",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/agents/planner.py",
+                "start_line": 30,
+                "end_line": 33
+              },
+              "relevance": "Planner agent implementation with tools and configuration",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The Writer agent generates individual documentation pages based on the plan created by the Planner agent. It takes node specifications (title, description, search queries) and produces complete documentation pages with proper citations.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/agents/writer.py",
+                "start_line": 1,
+                "end_line": 1
+              },
+              "relevance": "Writer agent module definition and purpose",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "def create_writer_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, DocNode]:\n    \"\"\"Create writer agent with tools.\"\"\"\n    prompt_config = load_prompt(prompt_path)\n    model = create_llm_model(llm_config)\n    \n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=DocNode,\n        instructions=prompt_config[\"instructions\"],\n    )\n    \n    # Get retry config from prompt file\n    tool_retries = prompt_config.get(\"tool_retries\", {})\n    search_code_retries = tool_retries.get(\"search_code\", 3)\n    read_file_retries = tool_retries.get(\"read_file\", 2)\n    \n    # Register tools with retries from config\n    agent.tool(retries=search_code_retries)(search_code)\n    agent.tool(retries=read_file_retries)(read_file)\n    \n    return agent",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/agents/writer.py",
+                "start_line": 15,
+                "end_line": 33
+              },
+              "relevance": "Writer agent implementation with file reading and search tools",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "Both agents are integrated into the documentation generation workflow through the Worker class. The Planner agent runs first to create the documentation structure, then the Writer agent processes each node in the plan to generate the actual documentation content. The agents have access to tools for file listing, code searching, and file reading to gather information from the codebase.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 116,
+                "end_line": 146
+              },
+              "relevance": "Worker implementation showing agent integration and execution flow",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/agents/planner.py",
+            "start_line": 1,
+            "end_line": 1
+          },
+          "relevance": "Planner agent module definition and purpose",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/agents/planner.py",
+            "start_line": 30,
+            "end_line": 33
+          },
+          "relevance": "Planner agent implementation with tools and configuration",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 116,
+            "end_line": 146
+          },
+          "relevance": "Worker implementation showing agent integration and execution flow",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "node_id": "core-services",
+      "title": "Core Services",
+      "summary": "Protocols and implementations for LLM, embeddings, and vector storage services",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The EmbeddingsService protocol defines the interface for text embedding operations. It provides asynchronous methods for generating embeddings from text content, supporting both single text and batch processing.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/services/__init__.py",
+                "start_line": 10,
+                "end_line": 16
+              },
+              "relevance": "Defines the EmbeddingsService protocol with async methods for text embedding",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The VectorStoreService protocol handles vector storage operations including upserting code chunks with their embeddings and searching for similar chunks based on query vectors.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/services/__init__.py",
+                "start_line": 19,
+                "end_line": 25
+              },
+              "relevance": "Defines the VectorStoreService protocol for vector storage operations",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The LLM service is configured through LLMConfig which specifies provider (OpenAI, Anthropic, Yandex), model name, API key, and generation parameters like temperature and max_tokens.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/config/settings.py",
+                "start_line": 9,
+                "end_line": 15
+              },
+              "relevance": "LLM configuration model with provider, model, and API settings",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The create_llm_model function creates pydantic-ai models with support for Yandex transport, using custom HTTP transport to handle Yandex API response wrapping.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/services/llm.py",
+                "start_line": 11,
+                "end_line": 22
+              },
+              "relevance": "LLM model factory function that creates pydantic-ai models with Yandex transport support",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/services/__init__.py",
+            "start_line": 10,
+            "end_line": 25
+          },
+          "relevance": "Core service protocols for dependency injection",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/config/settings.py",
+            "start_line": 9,
+            "end_line": 15
+          },
+          "relevance": "LLM configuration settings",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/services/llm.py",
+            "start_line": 11,
+            "end_line": 22
+          },
+          "relevance": "LLM model factory implementation",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "node_id": "events-and-workers",
+      "title": "Events and Workers",
+      "summary": "Event-driven architecture with worker system for distributed documentation generation",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The documentation generation system uses an event-driven architecture with workers that process events through an event bus. The `Worker` class is the main component that handles the complete documentation generation pipeline by subscribing to and processing various event types.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 1,
+                "end_line": 35
+              },
+              "relevance": "Worker class definition and event subscription setup",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The system provides two main event bus implementations:\n\n**EventBus Protocol**: Defines the interface that all event bus implementations must follow, with methods for emitting events and retrieving event history for debugging.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/events/bus.py",
+                "start_line": 7,
+                "end_line": 14
+              },
+              "relevance": "EventBus protocol defining the interface for event bus implementations",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "**SimpleEventBus**: An in-memory event bus implementation that stores events locally. This is suitable for single-process applications where distributed processing is not required.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/events/bus.py",
+                "start_line": 17,
+                "end_line": 38
+              },
+              "relevance": "SimpleEventBus implementation for in-memory event processing",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "**RedisEventBus**: A distributed event bus implementation using Redis Streams. This enables distributed processing across multiple workers and provides features like:\n- UUID-based stream isolation for different generations\n- Consumer groups for load balancing\n- Automatic message acknowledgment\n- Pending message recovery on startup\n- Stream TTL for cleanup",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/events/redis_bus.py",
+                "start_line": 14,
+                "end_line": 33
+              },
+              "relevance": "RedisEventBus class definition for distributed event processing",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "list",
+          "content": "The Worker subscribes to the following event types:\n- `generation.requested`: Starts the documentation generation process\n- `ingest.completed`: Handles completion of codebase ingestion\n- `index.completed`: Processes completion of chunk indexing\n- `plan.created`: Handles documentation plan creation\n- `node.write_requested`: Processes individual node generation requests\n- `node.completed`: Tracks completion of node generation",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/workers/worker.py",
+                "start_line": 48,
+                "end_line": 52
+              },
+              "relevance": "Worker event subscription method showing all event types handled",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "text",
+          "content": "The RedisEventBus implements a robust consumer loop that:\n- Uses Redis Streams with consumer groups for distributed processing\n- Handles message acknowledgment and error recovery\n- Recovers pending messages on startup using XPENDING and XCLAIM\n- Supports both synchronous and asynchronous event handlers\n- Provides automatic stream expiration for cleanup",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/events/redis_bus.py",
+                "start_line": 58,
+                "end_line": 89
+              },
+              "relevance": "RedisEventBus consumer loop implementation for distributed processing",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 1,
+            "end_line": 35
+          },
+          "relevance": "Worker class definition and event subscription setup",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/events/bus.py",
+            "start_line": 7,
+            "end_line": 14
+          },
+          "relevance": "EventBus protocol defining the interface for event bus implementations",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/events/redis_bus.py",
+            "start_line": 14,
+            "end_line": 33
+          },
+          "relevance": "RedisEventBus class definition for distributed event processing",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/workers/worker.py",
+            "start_line": 48,
+            "end_line": 52
+          },
+          "relevance": "Worker event subscription method showing all event types handled",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/events/redis_bus.py",
+            "start_line": 58,
+            "end_line": 89
+          },
+          "relevance": "RedisEventBus consumer loop implementation for distributed processing",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "node_id": "data-models",
+      "title": "Data Models",
+      "summary": "Data models for documentation bundles, nodes, and code chunks",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "The documentation system uses a hierarchical data model structure with DocBundle as the top-level container for documentation. A DocBundle contains multiple DocNode instances, each representing a single documentation page. Each DocNode contains DocBlock elements that form the content of the page, along with citations that reference the source code.",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/models/docs.py",
+                "start_line": 1,
+                "end_line": 42
+              },
+              "relevance": "Complete DocBundle and DocNode model definitions",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "class DocBundle(BaseModel):\n    \"\"\"Complete documentation bundle.\"\"\"\n    \n    version: str = Field(default=\"docbundle.v1\", description=\"Bundle format version\")\n    snapshot_hash: str = Field(description=\"Hash of the codebase snapshot\")\n    nodes: list[DocNode] = Field(description=\"All documentation nodes\")\n    metadata: dict = Field(default_factory=dict, description=\"Additional metadata\")",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/models/docs.py",
+                "start_line": 36,
+                "end_line": 42
+              },
+              "relevance": "DocBundle class definition with version, snapshot hash, and nodes",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "class DocNode(BaseModel):\n    \"\"\"A single documentation page/node.\"\"\"\n    \n    node_id: str = Field(description=\"Unique identifier for this node\")\n    title: str = Field(description=\"Page title\")\n    summary: str = Field(description=\"Brief summary of the page\")\n    blocks: list[DocBlock] = Field(description=\"Content blocks\")\n    citations: list[Citation] = Field(description=\"All citations used in this node\")\n    metadata: dict = Field(default_factory=dict, description=\"Additional metadata\")",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/models/docs.py",
+                "start_line": 23,
+                "end_line": 29
+              },
+              "relevance": "DocNode structure with node identifier, title, summary, and content blocks",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        },
+        {
+          "type": "code",
+          "content": "class CodeChunk(BaseModel):\n    \"\"\"A chunk of code with metadata.\"\"\"\n    \n    chunk_id: str = Field(description=\"Unique identifier for the chunk\")\n    span: FileSpan = Field(description=\"Location of this chunk in source\")\n    content: str = Field(description=\"The actual code content\")\n    language: str = Field(default=\"python\", description=\"Programming language\")\n    metadata: dict = Field(default_factory=dict, description=\"Additional metadata\")",
+          "citations": [
+            {
+              "span": {
+                "file_path": "docgen_core/models/chunks.py",
+                "start_line": 16,
+                "end_line": 27
+              },
+              "relevance": "CodeChunk model with file span, content, and metadata",
+              "metadata": {}
+            }
+          ],
+          "metadata": {}
+        }
+      ],
+      "citations": [
+        {
+          "span": {
+            "file_path": "docgen_core/models/docs.py",
+            "start_line": 1,
+            "end_line": 42
+          },
+          "relevance": "Complete DocBundle and DocNode model definitions",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/models/docs.py",
+            "start_line": 36,
+            "end_line": 42
+          },
+          "relevance": "DocBundle class definition with version, snapshot hash, and nodes",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/models/docs.py",
+            "start_line": 23,
+            "end_line": 29
+          },
+          "relevance": "DocNode structure with node identifier, title, summary, and content blocks",
+          "metadata": {}
+        },
+        {
+          "span": {
+            "file_path": "docgen_core/models/chunks.py",
+            "start_line": 16,
+            "end_line": 27
+          },
+          "relevance": "CodeChunk model with file span, content, and metadata",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "metadata": {}
+}

@@ -1,0 +1,404 @@
+{
+  "title": "Documentation Generation Pipeline",
+  "summary": "Event-driven documentation generation pipeline with multiple stages including ingest, index, planning, writing, review, and output",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 8,
+    "tags": [
+      "pipeline",
+      "workflow",
+      "architecture",
+      "generation"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Documentation Generation Pipeline"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation generation pipeline is an **event-driven workflow** that processes codebases through multiple stages to produce comprehensive documentation. It uses a modular architecture with specialized agents for each phase of the process."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Pipeline Stages"
+    },
+    {
+      "type": "paragraph",
+      "text": "The pipeline consists of **six main stages** that transform source code into polished documentation:"
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        {
+          "text": "**Ingest** - Discover and chunk Python files"
+        },
+        {
+          "text": "**Index** - Generate embeddings and store in vector database"
+        },
+        {
+          "text": "**Plan** - Create documentation structure and page specifications"
+        },
+        {
+          "text": "**Write** - Generate individual documentation pages"
+        },
+        {
+          "text": "**Review** - Evaluate and critique generated content"
+        },
+        {
+          "text": "**Output** - Write final documentation files"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Event-Driven Architecture"
+    },
+    {
+      "type": "paragraph",
+      "text": "The pipeline uses an **event bus** to coordinate between stages. Each stage emits events when completed, triggering the next phase. This allows for flexible monitoring and extensibility."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class EventBus(Protocol):\n    \"\"\"Protocol for event bus implementations.\"\"\"\n    \n    async def emit(self, event_type: str, data: dict) -> None:\n        \"\"\"Emit an event with given type and data.\"\"\"\n        ...\n    \n    def get_events(self) -> list[dict]:\n        \"\"\"Get all emitted events (for debugging).\"\"\"\n        ..."
+    },
+    {
+      "type": "paragraph",
+      "text": "Key events in the pipeline include:"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Event",
+        "Description",
+        "Triggered By"
+      ],
+      "rows": [
+        [
+          "generation.requested",
+          "Start documentation generation",
+          "User/CLI"
+        ],
+        [
+          "ingest.completed",
+          "Codebase ingestion finished",
+          "Ingest stage"
+        ],
+        [
+          "index.completed",
+          "Vector indexing completed",
+          "Index stage"
+        ],
+        [
+          "plan.created",
+          "Documentation plan ready",
+          "Planner agent"
+        ],
+        [
+          "page.write_requested",
+          "Request to write a page",
+          "Planner or Critic"
+        ],
+        [
+          "page.written",
+          "Page content generated",
+          "Writer agent"
+        ],
+        [
+          "page.reviewed",
+          "Page reviewed by critic",
+          "Critic agent"
+        ],
+        [
+          "page.completed",
+          "Page accepted and saved",
+          "Review stage"
+        ],
+        [
+          "generation.completed",
+          "All documentation ready",
+          "Final stage"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Ingest Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "The ingest stage discovers Python files and splits them into manageable chunks for processing."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "async def ingest_codebase(\n    path: Path,\n    chunk_size: int,\n    chunk_overlap: int,\n    overlap_lines_divisor: int,\n    event_bus: EventBus,\n) -> list[CodeChunk]:\n    \"\"\"Ingest entire codebase and create chunks.\"\"\"\n    files = discover_files(path)\n    \n    logger.info(\"ingest_started\", files_count=len(files), path=str(path))\n    await event_bus.emit(\"ingest.started\", {\"files_count\": len(files)})\n    \n    all_chunks = []\n    for idx, file_path in enumerate(files, 1):\n        logger.info(\"processing_file\", file=str(file_path), progress=f\"{idx}/{len(files)}\")\n        chunks = await create_chunks(file_path, chunk_size, chunk_overlap, overlap_lines_divisor, event_bus)\n        all_chunks.extend(chunks)\n    \n    logger.info(\"ingest_completed\", total_chunks=len(all_chunks))\n    return all_chunks"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key features of the ingest stage:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Recursively discovers all `.py` files in the target directory"
+        },
+        {
+          "text": "Splits files into chunks with configurable size and overlap"
+        },
+        {
+          "text": "Emits progress events for monitoring"
+        },
+        {
+          "text": "Creates `CodeChunk` objects with file spans and metadata"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Index Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "The index stage generates embeddings for each code chunk and stores them in a vector database for semantic search."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "async def index_chunks(\n    chunks: list[CodeChunk],\n    embeddings_service: EmbeddingsService,\n    vectorstore: VectorStoreService,\n    event_bus: EventBus,\n    batch_size: int,\n    concurrency: int = 4,\n) -> None:\n    \"\"\"Index chunks by generating embeddings and storing in vector DB.\"\"\"\n    # Process batches with concurrency limit\n    all_embeddings: list[list[float]] = [[] for _ in range(len(chunks))]\n    \n    semaphore = asyncio.Semaphore(concurrency)\n    \n    # Create and process embedding tasks\n    tasks = [\n        process_with_semaphore(batch_idx, texts)\n        for batch_idx, texts in batches\n    ]\n    \n    # Store in vector DB\n    await vectorstore.upsert(chunks, all_embeddings)"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Key features of the index stage:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Processes chunks in parallel batches for performance"
+        },
+        {
+          "text": "Uses configurable concurrency limits"
+        },
+        {
+          "text": "Stores embeddings with chunk metadata in vector database"
+        },
+        {
+          "text": "Provides semantic search capabilities for later stages"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Planning Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "The planning stage uses an **AI agent** to analyze the codebase and create a comprehensive documentation structure."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class PlannerOutput(BaseModel):\n    \"\"\"Complete documentation plan with navigation structure.\"\"\"\n    \n    navigation: dict[str, str | dict] = Field(\n        description=\"Navigation structure for index.json\"\n    )\n    page_specs: list[PageSpec] = Field(\n        description=\"Specifications for pages to generate\"\n    )"
+    },
+    {
+      "type": "paragraph",
+      "text": "The planner agent has access to tools for code exploration:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**`list_files`** - Discover files in the codebase"
+        },
+        {
+          "text": "**`search_code`** - Search for relevant code snippets"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Writing Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "The writing stage uses another AI agent to generate individual documentation pages based on the page specifications."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "def create_writer_agent(llm_config: LLMConfig, prompt_path: Path) -> Agent[DocGenDeps, DocPage]:\n    \"\"\"Create writer agent with tools.\"\"\"\n    agent = Agent(\n        model=model,\n        deps_type=DocGenDeps,\n        output_type=DocPage,\n        instructions=prompt_config.instructions,\n        retries=prompt_config.max_result_retries,\n    )\n    \n    agent.tool(retries=search_code_retries)(search_code)\n    agent.tool(retries=read_file_retries)(read_file)\n    \n    return agent"
+    },
+    {
+      "type": "paragraph",
+      "text": "The writer agent uses search and file reading tools to gather context and generate accurate documentation."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Review Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "Each generated page goes through a **quality review process** to ensure accuracy and completeness."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "async def handle_page_reviewed(self, data: dict[str, Any]) -> None:\n    \"\"\"Handle page.reviewed event - decide whether to accept or retry.\"\"\"\n    review = CriticOutput(**review_data)\n    \n    # Determine if revision is needed\n    needs_revision = False\n    \n    if review.has_hallucinations:\n        if attempt < self.config.generation.max_hallucination_retries:\n            needs_revision = True\n            reason = \"hallucinations_detected\"\n    elif review.score < self.config.generation.min_page_score:\n        if attempt < self.config.generation.max_page_retries:\n            needs_revision = True\n            reason = \"low_score\"\n    \n    if needs_revision:\n        await self.event_bus.emit(\"page.revision_requested\", ...)\n    else:\n        await self.event_bus.emit(\"page.completed\", ...)"
+    },
+    {
+      "type": "paragraph",
+      "text": "**Review criteria include:**"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Hallucination detection** - Ensure factual accuracy"
+        },
+        {
+          "text": "**Quality scoring** - Evaluate content quality (0-10 scale)"
+        },
+        {
+          "text": "**Retry mechanism** - Automatically rewrite poor-quality pages"
+        },
+        {
+          "text": "**Configurable thresholds** - Adjustable quality requirements"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Output Stage"
+    },
+    {
+      "type": "paragraph",
+      "text": "The final stage writes the completed documentation to disk in a structured format."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "async def handle_page_completed(self, data: dict[str, Any]) -> None:\n    \"\"\"Handle page.completed event - write page and check if all done.\"\"\"\n    page = DocPage(**page_data)\n    \n    # Write page to disk\n    output_dir = self.output_dirs.get(generation_id, Path(\"documentation\"))\n    writer = DocumentationWriter(output_dir)\n    writer.write_page(page_id, page)\n    \n    # Check if all pages are done\n    if completed_count >= expected_count:\n        await self.event_bus.emit(\"generation.completed\", ...)"
+    },
+    {
+      "type": "paragraph",
+      "text": "The pipeline produces a complete documentation structure with navigation and individual pages."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Configuration"
+    },
+    {
+      "type": "paragraph",
+      "text": "Pipeline behavior is controlled through configuration settings:"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Setting",
+        "Type",
+        "Default",
+        "Description"
+      ],
+      "rows": [
+        [
+          "chunk_size",
+          "int",
+          "2000",
+          "Maximum characters per code chunk"
+        ],
+        [
+          "chunk_overlap",
+          "int",
+          "200",
+          "Overlap between chunks"
+        ],
+        [
+          "max_page_retries",
+          "int",
+          "3",
+          "Maximum rewrite attempts per page"
+        ],
+        [
+          "max_hallucination_retries",
+          "int",
+          "2",
+          "Maximum retries for hallucinated content"
+        ],
+        [
+          "min_page_score",
+          "float",
+          "7.0",
+          "Minimum quality score to accept page"
+        ],
+        [
+          "batch_size",
+          "int",
+          "32",
+          "Embedding generation batch size"
+        ],
+        [
+          "concurrency",
+          "int",
+          "4",
+          "Parallel embedding requests"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Error Handling and Resilience"
+    },
+    {
+      "type": "paragraph",
+      "text": "The pipeline includes robust error handling mechanisms:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Retry mechanisms** for failed operations"
+        },
+        {
+          "text": "**Graceful degradation** when quality thresholds aren't met"
+        },
+        {
+          "text": "**Progress tracking** for monitoring and debugging"
+        },
+        {
+          "text": "**Event-based error reporting** for observability"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "The pipeline is designed to be **resilient and observable**, making it suitable for production use with complex codebases."
+    }
+  ],
+  "related": [
+    "workers",
+    "agents",
+    "configuration",
+    "output"
+  ]
+}

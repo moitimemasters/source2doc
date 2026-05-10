@@ -1,0 +1,184 @@
+{
+  "title": "Output Generation",
+  "summary": "Documentation output generation and formatting system",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 7,
+    "tags": [
+      "output",
+      "generation",
+      "formatting",
+      "documentation"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Output Generation"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation system generates structured JSON output that can be rendered into various formats like Markdown, HTML, or other documentation formats. The output system is designed to be flexible and extensible, supporting rich content types and metadata."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "DocumentationWriter Class"
+    },
+    {
+      "type": "paragraph",
+      "text": "The `DocumentationWriter` class is responsible for writing generated documentation to disk. It handles both the main index file and individual page files."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "class DocumentationWriter:\n    \"\"\"Writes documentation files to disk.\"\"\"\n    \n    def __init__(self, output_dir: Path):\n        \"\"\"Initialize writer with output directory.\"\"\"\n        self.output_dir = output_dir\n        self.pages_dir = output_dir / \"pages\"\n        \n    def write_index(self, index: DocIndex) -> None:\n        \"\"\"Write index.json file.\"\"\"\n        self.pages_dir.mkdir(parents=True, exist_ok=True)\n        \n        index_path = self.output_dir / \"index.json\"\n        content = index.model_dump_json(indent=2, exclude_none=True)\n        index_path.write_text(content, encoding=\"utf-8\")\n        \n        logger.info(\"index_written\", path=str(index_path))\n    \n    def write_page(self, page_id: str, page: DocPage) -> None:\n        \"\"\"Write a documentation page.\"\"\"\n        self.pages_dir.mkdir(parents=True, exist_ok=True)\n        \n        page_path = self.pages_dir / f\"{page_id}.json\"\n        content = page.model_dump_json(indent=2, exclude_none=True)\n        page_path.write_text(content, encoding=\"utf-8\")\n        \n        logger.info(\"page_written\", page_id=page_id, path=str(page_path))"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Documentation Models"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system uses Pydantic models to define the structure of documentation output. Key models include:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**DocPage** - Represents a single documentation page with title, summary, metadata, and content blocks"
+        },
+        {
+          "text": "**DocIndex** - Contains the navigation structure and metadata for the entire documentation set"
+        },
+        {
+          "text": "**PageMetadata** - Stores page-level metadata like generation timestamp and reading time"
+        },
+        {
+          "text": "**DocBlock** - Union type for all supported content block types"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Supported Block Types"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation system supports various content block types for rich documentation:"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Block Type",
+        "Description"
+      ],
+      "rows": [
+        [
+          "HeadingBlock",
+          "Headings from h1 to h6 with Markdown support"
+        ],
+        [
+          "ParagraphBlock",
+          "Text paragraphs with Markdown formatting"
+        ],
+        [
+          "CodeBlock",
+          "Code snippets with syntax highlighting"
+        ],
+        [
+          "ListBlock",
+          "Ordered and unordered lists"
+        ],
+        [
+          "TableBlock",
+          "Tables with headers and rows"
+        ],
+        [
+          "CalloutBlock",
+          "Highlighted callouts (info, warning, error, success)"
+        ],
+        [
+          "MermaidBlock",
+          "Mermaid diagrams for visual documentation"
+        ],
+        [
+          "CutBlock",
+          "Collapsible sections with nested content"
+        ],
+        [
+          "ImageBlock",
+          "Images with captions and alt text"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Output Structure"
+    },
+    {
+      "type": "paragraph",
+      "text": "The generated documentation follows a specific directory structure:"
+    },
+    {
+      "type": "code",
+      "lang": "plaintext",
+      "code": "output_directory/\n├── index.json          # Main navigation index\n└── pages/\n    ├── page1.json      # Individual page content\n    ├── page2.json\n    └── ..."
+    },
+    {
+      "type": "paragraph",
+      "text": "Each page file contains the complete structured content that can be rendered to various output formats."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Usage Example"
+    },
+    {
+      "type": "paragraph",
+      "text": "Here's how to use the DocumentationWriter:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "from docgen_core.output import DocumentationWriter\nfrom docgen_core.models.docs import DocPage, PageMetadata\nfrom pathlib import Path\n\n# Initialize writer\nwriter = DocumentationWriter(Path(\"./docs\"))\n\n# Create a simple page\npage = DocPage(\n    title=\"Getting Started\",\n    summary=\"Introduction to the system\",\n    metadata=PageMetadata(\n        generated_at=\"2024-01-01T00:00:00Z\",\n        reading_time=5,\n        tags=[\"beginner\", \"tutorial\"]\n    ),\n    blocks=[\n        # ... content blocks\n    ]\n)\n\n# Write the page\nwriter.write_page(\"getting-started\", page)"
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Important Notes"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**JSON Format**: All output is in JSON format for easy processing by renderers"
+        },
+        {
+          "text": "**UTF-8 Encoding**: Files are written with UTF-8 encoding to support international characters"
+        },
+        {
+          "text": "**Directory Creation**: The writer automatically creates necessary directories"
+        },
+        {
+          "text": "**Logging**: All write operations are logged for debugging purposes"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "The output generation system provides a solid foundation for creating well-structured, extensible documentation that can be rendered to multiple formats while maintaining content integrity."
+    }
+  ],
+  "related": [
+    "models",
+    "pipeline",
+    "configuration"
+  ]
+}

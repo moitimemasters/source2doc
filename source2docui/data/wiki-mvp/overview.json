@@ -1,0 +1,199 @@
+{
+  "title": "Overview",
+  "summary": "High-level overview of the AI-powered documentation generation system",
+  "metadata": {
+    "generated_at": "2024-12-19T10:30:00Z",
+    "reading_time": 7,
+    "tags": [
+      "overview",
+      "architecture",
+      "pipeline"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "text": "Overview"
+    },
+    {
+      "type": "paragraph",
+      "text": "The documentation generation system is an **AI-powered tool** that automatically creates comprehensive documentation for codebases. It uses a multi-stage pipeline with specialized agents to plan, write, and review documentation pages based on code analysis."
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "System Purpose"
+    },
+    {
+      "type": "paragraph",
+      "text": "The primary purpose of this system is to **automate the documentation process** by:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "Analyzing codebases to understand structure and functionality"
+        },
+        {
+          "text": "Generating structured documentation plans with navigation"
+        },
+        {
+          "text": "Writing detailed documentation pages using AI agents"
+        },
+        {
+          "text": "Reviewing and improving content quality through iterative refinement"
+        },
+        {
+          "text": "Producing searchable, well-organized documentation output"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Core Architecture"
+    },
+    {
+      "type": "paragraph",
+      "text": "The system follows an **event-driven architecture** with three main components:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**CLI Interface** - Entry point for generating documentation"
+        },
+        {
+          "text": "**Worker Pipeline** - Event-driven processing of documentation generation"
+        },
+        {
+          "text": "**Agent System** - Specialized AI agents for planning, writing, and reviewing"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "CLI Interface"
+    },
+    {
+      "type": "paragraph",
+      "text": "The command-line interface provides the main entry point for documentation generation:"
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "code": "@app.command()\ndef generate(\n    path: Path = typer.Argument(..., help=\"Path to codebase\"),\n    config: Path = typer.Option(\"configs/config.yaml\", help=\"Path to config file\"),\n    output: Path = typer.Option(\"documentation\", help=\"Output directory\"),\n    clear_qdrant: bool = typer.Option(False, \"--clear-qdrant\", help=\"Clear Qdrant collection before indexing\"),\n) -> None:\n    \"\"\"Generate documentation for codebase.\"\"\"\n    asyncio.run(generate_async(path, config, output, clear_qdrant))"
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Worker Pipeline"
+    },
+    {
+      "type": "paragraph",
+      "text": "The event-driven worker processes documentation generation through a multi-stage pipeline:"
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "items": [
+        {
+          "text": "**Ingestion** - Parse and chunk the codebase"
+        },
+        {
+          "text": "**Indexing** - Create vector embeddings for semantic search"
+        },
+        {
+          "text": "**Planning** - Generate documentation structure and page specifications"
+        },
+        {
+          "text": "**Writing** - Create individual documentation pages"
+        },
+        {
+          "text": "**Review** - Evaluate and improve page quality"
+        },
+        {
+          "text": "**Output** - Write final documentation files"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 3,
+      "text": "Agent System"
+    },
+    {
+      "type": "paragraph",
+      "text": "Three specialized AI agents work together to create high-quality documentation:"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "Agent",
+        "Purpose",
+        "Description"
+      ],
+      "rows": [
+        [
+          "Planner",
+          "Structure Planning",
+          "Creates documentation plan with navigation structure and page specifications"
+        ],
+        [
+          "Writer",
+          "Content Generation",
+          "Writes individual documentation pages based on code analysis"
+        ],
+        [
+          "Critic",
+          "Quality Review",
+          "Reviews pages for accuracy, quality, and identifies hallucinations"
+        ]
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "text": "Key Features"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        {
+          "text": "**Semantic Search** - Uses vector embeddings to find relevant code sections"
+        },
+        {
+          "text": "**Iterative Refinement** - Multiple review cycles to improve quality"
+        },
+        {
+          "text": "**Hallucination Detection** - Identifies and corrects AI-generated inaccuracies"
+        },
+        {
+          "text": "**Event-Driven Architecture** - Scalable, observable processing pipeline"
+        },
+        {
+          "text": "**Configurable Quality Thresholds** - Customizable scoring and retry limits"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "The system is designed to handle codebases of various sizes and produce documentation that accurately reflects the code structure and functionality."
+    },
+    {
+      "type": "callout",
+      "variant": "info",
+      "text": "💡 **Tip**: Use the `--clear-qdrant` flag to reset the vector database when re-generating documentation for the same codebase."
+    }
+  ],
+  "related": [
+    "cli",
+    "configuration",
+    "agents"
+  ]
+}

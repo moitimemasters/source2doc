@@ -1,0 +1,7 @@
+{
+    "name": "Main Documentation",
+    "description": "Core documentation and guides for the platform",
+    "version": "1.0.0",
+    "tags": ["documentation", "guides", "getting-started"],
+    "categories": ["core"]
+}

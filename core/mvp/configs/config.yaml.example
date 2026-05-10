@@ -1,0 +1,68 @@
+# DocGen MVP Configuration
+# Settings from source2doc2
+
+llm:
+  provider: openai-compatible
+  model: default
+  api_key: YOUR_API_KEY_HERE
+  base_url: https://api.eliza.yandex.net/internal/deepseek-v3-1-terminus/v1
+  temperature: 0.2
+  max_tokens: 4000
+
+embeddings:
+  provider: openai-compatible
+  model: Qodo-Embed-1-7B
+  api_key: YOUR_API_KEY_HERE
+  base_url: https://api.eliza.yandex.net/raw/internal/embedder-qodo/v1
+  dimensions: 3584
+  batch_size: 500
+  concurrency: 4
+
+qdrant:
+  url: http://localhost:6333
+  collection: docgen
+  api_key: null
+
+postgres:
+  host: localhost
+  port: 5432
+  database: docgen
+  user: docgen
+  password: docgen_password
+
+redis:
+  url: redis://localhost:6379
+  stream_prefix: pipeline
+  consumer_group: workers
+  consumer_name: worker-1
+  block_timeout_ms: 5000
+  max_idle_time_ms: 120000
+  stream_ttl_seconds: 86400
+
+worker:
+  poll_interval_ms: 1000
+  max_retries: 3
+  retry_delay_ms: 5000
+
+logging:
+  level: INFO
+
+logfire:
+  enabled: true
+  token: YOUR_LOGFIRE_TOKEN_HERE
+
+prompts:
+  planner: configs/agents/planner.yaml
+  writer: configs/agents/writer.yaml
+  critic: configs/agents/yaml
+
+generation:
+  min_citations: 3
+  max_nodes: 50
+  chunk_size: 1000
+  chunk_overlap: 200
+  search_limit: 3
+  overlap_lines_divisor: 50
+  min_page_score: 7
+  max_page_retries: 2
+  max_hallucination_retries: 3
