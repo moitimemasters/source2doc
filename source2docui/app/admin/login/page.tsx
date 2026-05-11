@@ -1,14 +1,13 @@
 "use client";
 
 import { FormEvent, Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function AdminLoginForm() {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const next = searchParams.get("next") || "/admin";
 
@@ -30,13 +29,14 @@ function AdminLoginForm() {
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
                 setError(body.detail || "Login failed");
+                setSubmitting(false);
                 return;
             }
-            router.replace(next);
-            router.refresh();
+            // Hard navigation: avoids Next 16 soft-navigation cache reading
+            // the pre-login auth state and bouncing back to /admin/login.
+            window.location.assign(next);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Network error");
-        } finally {
             setSubmitting(false);
         }
     }

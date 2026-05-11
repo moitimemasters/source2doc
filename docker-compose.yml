@@ -128,14 +128,10 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.gateway
     profiles: [app]
-    # host networking so the embeddings call in /api/v1/search can reach
-    # IPv6-only LLM endpoints (matches worker-docgen).
-    network_mode: host
     volumes:
-      # Gateway runs in `network_mode: host`, so the bundled config must use
-      # localhost-based hostnames; we keep `config.docker.host.yaml` for that
-      # variant alongside the bridge-network `config.docker.yaml`.
-      - ./core/gateway/config.docker.host.yaml:/app/core/gateway/config.yaml:ro
+      - ./core/gateway/config.docker.yaml:/app/core/gateway/config.yaml:ro
+    networks:
+      - source2doc
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=PathPrefix(`/api/v1`)"
@@ -319,14 +315,10 @@ services:
     ports:
       - "3001:3000"
     environment:
-      # gateway runs in network_mode: host, so we reach it via the docker host.
-      - GATEWAY_URL=http://host.docker.internal:8003
-      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8003
-    extra_hosts:
-      # Lets the UI proxy reach the host-network'd gateway from inside its
-      # bridge-network container. Required on Linux (Docker Desktop maps
-      # host.docker.internal automatically, but `extra_hosts` covers both).
-      - "host.docker.internal:host-gateway"
+      # Server-side: reach gateway by service DNS inside source2doc network.
+      # Browser-side: hit Traefik on :80 which routes /api/v1/* to gateway.
+      - GATEWAY_URL=http://gateway:8003
+      - NEXT_PUBLIC_GATEWAY_URL=http://localhost
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ui.rule=PathPrefix(`/`)"
