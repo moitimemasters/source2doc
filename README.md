@@ -4,53 +4,56 @@ LLM-генератор технической документации по ис
 
 ## Функционал
 
-source2doc принимает git-URL или tar.gz, гонит код через LLM-пайплайн
-(Planner → Writer → Critic) и публикует свёрстанную документацию с
+source2doc принимает git-URL или tar.gz, прогоняет код через LLM-пайплайн
+и публикует свёрстанную документацию с
 mermaid-диаграммами, RAG-цитатами в коде, интерактивными Code Tours и
 экспортом в MkDocs / Nextra / Sphinx.
 
 source2doc состоит из нескольких компонентов:
 
 - **Gateway**, `core/gateway`:
-  - FastAPI на `:8003`.
-  - Принимает HTTP-запросы от UI и CI.
-  - Шифрует preset-конфиги (Fernet), кладёт задачи в Redis Streams.
-  - Стримит события воркеров обратно через SSE.
+    - FastAPI на `:8003`.
+    - Принимает HTTP-запросы от UI и CI.
+    - Шифрует preset-конфиги (Fernet), кладёт задачи в Redis Streams.
+    - Стримит события воркеров обратно через SSE.
 - **Workers**, `core/worker`:
-  - Один бинарь, четыре режима: `docgen`, `repos`, `bundler`, `codetour`.
-  - Консумят Redis Streams через consumer groups (exactly-once).
+    - Один бинарь, четыре режима: `docgen`, `repos`, `bundler`, `codetour`.
+    - Консумят Redis Streams через consumer groups (exactly-once).
 - **UI**, `source2docui`:
-  - Next.js 16 / React 19.
-  - `/admin/*` для конфигурации, `/wiki/*` и `/bundles` — публичные.
+    - Next.js 16 / React 19.
+    - `/admin/*` для конфигурации, `/wiki/*` и `/bundles` — публичные.
 - **Core**, `core/shared`, `core/mvp`, `core/codetour`:
-  - Pydantic-модели конфигов, Redis bus, Pydantic-AI агенты, RAG-пайплайн.
+    - Pydantic-модели конфигов, Redis bus, Pydantic-AI агенты, RAG-пайплайн.
 
 ## Установка
 
 1. Сгенерировать `.env` со случайным Fernet-ключом и bcrypt-хешем
    случайного админ-пароля:
-   ```
-   $ ./bootstrap.sh
-   Generating encryption key...
-   Hashing admin password...
-   ============================================================
-   .env generated.
 
-   Admin login:
-     username: admin
-     password: 7kQp8RvZ2nMxY4Lf
+    ```
+    $ ./bootstrap.sh
+    Generating encryption key...
+    Hashing admin password...
+    ============================================================
+    .env generated.
 
-   SAVE THIS PASSWORD NOW — it is not stored anywhere else.
-   ============================================================
-   ```
+    Admin login:
+      username: admin
+      password: 7kQp8RvZ2nMxY4Lf
+
+    SAVE THIS PASSWORD NOW — it is not stored anywhere else.
+    ============================================================
+    ```
+
 2. Поднять стек:
-   ```
-   $ docker compose --profile app up -d --build
-   ```
-   Миграции применятся автоматически.
+    ```
+    $ docker compose --profile app up -d --build
+    ```
+    Миграции применятся автоматически.
 3. Открыть `http://localhost/` и залогиниться на `/admin/login`.
 
 Свой пароль вместо случайного:
+
 ```
 $ ADMIN_PASSWORD="my-password" ./bootstrap.sh
 ```
@@ -66,6 +69,7 @@ $ ADMIN_PASSWORD="my-password" ./bootstrap.sh
    генерить Code Tour через floating-кнопку.
 
 Через HTTP:
+
 ```
 $ curl -c jar -X POST http://localhost/api/v1/admin/auth/login \
     -H 'Content-Type: application/json' \
