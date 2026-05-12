@@ -105,7 +105,6 @@ ENV/
 
 # UV (Python package manager)
 .uv/
-uv.lock
 
 # Next.js
 .next/
