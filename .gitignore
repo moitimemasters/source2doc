@@ -119,14 +119,11 @@ out/
 config.ui.yaml
 .worktrees
 
-# Component config files — contain encryption_key (Fernet), LLM api_key,
-# admin_password_hash (bcrypt), Logfire tokens, etc. Each has a *.example
-# variant next to it that is safe to commit. Generate real values via:
-#   ./generate-encryption-key.sh "<passphrase>"   → encryption_key
-#   ./generate-admin-password.sh                  → admin_password_hash
+# Local-dev component configs that may contain real LLM keys. The docker-mounted
+# config files (`core/{gateway,worker}/config.docker.yaml`) are checked in —
+# they reference secrets via `${ENCRYPTION_KEY}` / `${ADMIN_PASSWORD_HASH}` /
+# `${POSTGRES_PASSWORD}`, populated from `.env` (which IS gitignored).
 core/gateway/config.yaml
-core/gateway/config.docker.yaml
 core/worker/config.yaml
-core/worker/config.docker.yaml
 core/codetour/config.yaml
 core/mvp/configs/config.yaml

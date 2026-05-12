@@ -1,0 +1,24 @@
+worker_id: "${WORKER_ID}"
+encryption_key: "${ENCRYPTION_KEY}"
+
+redis:
+  url: redis://redis:6379
+
+postgres:
+  host: postgres
+  port: 5432
+  database: docgen
+  user: docgen
+  password: "${POSTGRES_PASSWORD}"
+
+qdrant:
+  url: http://qdrant:6333
+
+s3:
+  endpoint_url: http://localstack:4566
+  region: us-east-1
+  access_key_id: test
+  secret_access_key: test
+  bucket: source2doc-repos
+
+prompts_dir: configs/agents
