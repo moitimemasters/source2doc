@@ -1,149 +1,204 @@
 # source2doc
 
-LLM-powered documentation generator. Point it at a git repo or a tar.gz, get
-a fully-rendered docs site (with navigation, code citations, mermaid diagrams,
-optional interactive Code Tours, and exportable MkDocs / Nextra / Sphinx
-bundles).
+LLM-генератор технической документации по исходному коду. Скармливаешь git-URL
+или tar.gz архив — получаешь полностью свёрстанный сайт документации с
+навигацией, цитатами в коде, mermaid-диаграммами, опциональными интерактивными
+Code Tours и экспортом в MkDocs / Nextra / Sphinx.
 
-The whole stack runs locally in Docker. End-users never type LLM credentials —
-an admin configures one preset once via `/admin/presets`, and everything else
-(public reads, public code-tours, public bundle exports) uses it.
+Весь стек поднимается локально в Docker. Конечные пользователи **не вводят
+LLM-креды** — админ один раз создаёт preset в `/admin/presets`, и всё
+остальное (публичное чтение wiki, code tours, экспорт bundle-ов) использует
+этот preset.
 
 ---
 
-## Quick start
+## Быстрый старт
 
-You need Docker (28+, with Compose v2), plus either `uv` or system `python3`
-with `bcrypt` + `cryptography` available (the helper scripts will tell you
-which to install).
+Нужно: Docker (28+, с Compose v2) и либо `uv`, либо системный `python3` с
+`bcrypt` + `cryptography` (helper-скрипты подскажут, если чего-то не хватает).
 
 ```bash
-git clone <this-repo> source2doc && cd source2doc
-./bootstrap.sh                                # writes .env, prints admin password
+git clone <repo> source2doc && cd source2doc
+./bootstrap.sh
 docker compose --profile app up -d --build
 ```
 
-That's it. After the stack settles (~30s on first build), open:
+`bootstrap.sh` создаст `.env` со случайным Fernet-ключом и bcrypt-хешем
+случайного админ-пароля, и **один раз** распечатает пароль в консоль —
+сохрани его сразу.
 
-| URL | What |
+Через 30–60 секунд после первого `up -d --build` стек готов. Открывай:
+
+| URL | Что |
 |---|---|
-| http://localhost/ | UI (Traefik routes `/api/v1/*` to gateway, everything else to UI) |
-| http://localhost/admin/login | Admin login — username `admin`, password printed by `bootstrap.sh` |
+| http://localhost/ | Главная (Traefik: `/api/v1/*` → gateway, всё остальное → UI) |
+| http://localhost/admin/login | Логин — `admin` + пароль из вывода bootstrap.sh |
 | http://localhost:5050 | pgAdmin (`admin@source2doc.local` / `admin`) |
 | http://localhost:6333/dashboard | Qdrant dashboard |
-| http://localhost:8080 | Traefik dashboard (debug) |
+| http://localhost:8080 | Traefik dashboard (debug-only) |
 
-Direct ports `:3001` (UI) and `:8003` (gateway) are also exposed for dev
-convenience but the canonical entry point is `:80`.
+Прямые порты `:3001` (UI) и `:8003` (gateway) тоже открыты для отладки, но
+каноничная точка входа — `:80`.
 
-### First-run flow
-
-1. `/admin/login` with the credentials `bootstrap.sh` printed.
-2. `/admin/presets` → create a preset with your LLM + embeddings + Qdrant
-   credentials. Mark it default.
-3. `/admin/repos` → upload a tar.gz or paste a git URL.
-4. `/admin/generate` → pick repo + preset → start.
-5. Anyone (no login) can then read `/wiki/<project>`, request Code Tours,
-   export MkDocs/Nextra/Sphinx bundles via `/bundles`.
-
----
-
-## What's in `.env`
-
-`bootstrap.sh` writes three values. That's the entire secret surface:
-
-| Var | Source | Used by |
-|---|---|---|
-| `ENCRYPTION_KEY` | `./generate-encryption-key.sh` (Fernet, 32 random bytes) | gateway + every worker — encrypts per-task LLM configs in Redis and admin presets in Postgres |
-| `ADMIN_PASSWORD_HASH` | `./generate-admin-password.sh <password>` (bcrypt) | gateway login |
-| `POSTGRES_PASSWORD` | bootstrap default (`docgen_password`) | postgres container + gateway/worker config |
-
-`config.docker.yaml` in `core/gateway/` and `core/worker/` is committed,
-references those three values via `${VAR}` substitution at load time, and
-otherwise hardcodes the Docker service DNS (`postgres`, `redis`, `qdrant`,
-`localstack`). Nothing else should need to be touched for a fresh setup.
-
-### Re-bootstrapping
+### Свой пароль вместо случайного
 
 ```bash
-docker compose --profile app down -v        # nuke containers + volumes
+ADMIN_PASSWORD="моё-секретное-слово" ./bootstrap.sh
+```
+
+### Пересоздать с нуля
+
+```bash
+docker compose --profile app down -v   # снести контейнеры + тома
 rm .env
 ./bootstrap.sh
 docker compose --profile app up -d --build
 ```
 
-### Custom admin password
+---
 
-```bash
-ADMIN_PASSWORD="my-real-password" ./bootstrap.sh
-```
+## Первый сценарий
+
+1. `/admin/login` — логинимся.
+2. `/admin/presets` → создаём preset с твоими LLM + embeddings + Qdrant
+   кредами, отмечаем default.
+3. `/admin/repos` → загружаем tar.gz или вставляем git URL.
+4. `/admin/generate` → выбираем репо + preset → старт.
+5. Без логина: `/wiki/<project>` для чтения, `/bundles` для экспорта,
+   floating `Code Tour`-кнопка для интерактивных туров.
+
+CI/прямой HTTP-доступ — см. раздел [HTTP API](#http-api) ниже.
 
 ---
 
-## Stack layout
+## Что в `.env`
 
-| Path | What |
+`bootstrap.sh` пишет ровно три переменные — всё, что вообще нужно для запуска:
+
+| Переменная | Источник | Используют |
+|---|---|---|
+| `ENCRYPTION_KEY` | `./generate-encryption-key.sh` (`Fernet.generate_key()`, 32 случайных байта в url-safe base64) | gateway + все воркеры. Шифрует per-task LLM-конфиги в Redis и admin-presets в Postgres. **Должен совпадать** во всех сервисах — иначе воркер не расшифрует payload от gateway. |
+| `ADMIN_PASSWORD_HASH` | `./generate-admin-password.sh <пароль>` (bcrypt) | только gateway. Сравнивается с тем, что вводят на `/admin/login`. |
+| `POSTGRES_PASSWORD` | по умолчанию `docgen_password` | postgres-контейнер + gateway/worker (через `${POSTGRES_PASSWORD}` в `core/*/config.docker.yaml`). |
+
+`core/gateway/config.docker.yaml` и `core/worker/config.docker.yaml`
+закоммичены в репозиторий, ссылаются на эти три значения через `${...}` и
+**жёстко хардкодят** Docker DNS-имена (`postgres`, `redis`, `qdrant`,
+`localstack`). Для свежего clone больше **ничего трогать не надо**.
+
+> `bootstrap.sh` дублирует `$` в bcrypt-хеше как `$$` — это обязательно: Docker
+> Compose интерполирует `$<имя>` в `env_file` и без эскейпа сжирает части хеша.
+> Поэтому хеш в `.env` выглядит как `$$2b$$12$$...`, а внутри контейнера
+> приходит уже как `$2b$12$...`.
+
+---
+
+## Стек
+
+| Путь | Что |
 |---|---|
-| [core/gateway](./core/gateway) | FastAPI on `:8003`. Single ingress to UI + CI. Issues admin cookies, publishes Redis Stream tasks, streams worker events back via SSE. |
-| [core/worker](./core/worker) | One binary, four modes: `docgen` (Planner→Writer→Critic on Pydantic-AI), `repos` (git clone / tar.gz unpack → S3 + Qdrant index), `bundler` (export to MkDocs/Nextra/Sphinx), `codetour` (interactive RAG-based tours). |
-| [core/mvp](./core/mvp) | DocGen pipeline + Pydantic-AI agents. CLI usage in [core/mvp/README.md](./core/mvp/README.md). |
-| [core/codetour](./core/codetour) | Code-tour generation agent. |
-| [core/shared](./core/shared) | Shared Pydantic config models, asyncpg, Redis bus, aioboto3, structlog. |
-| [source2docui](./source2docui) | Next.js 16 / React 19 UI. |
+| [core/gateway](./core/gateway) | FastAPI на `:8003`. Единая точка входа для UI и CI. Выдаёт admin-cookie, публикует задачи в Redis Streams, стримит события воркеров обратно через SSE. |
+| [core/worker](./core/worker) | Один бинарь, четыре режима: `docgen` (Planner → Writer → Critic на Pydantic-AI), `repos` (git clone / распаковка tar.gz → S3 + индексация в Qdrant), `bundler` (MkDocs / Nextra / Sphinx), `codetour` (RAG-туры по коду). |
+| [core/mvp](./core/mvp) | DocGen-пайплайн + Pydantic-AI агенты. Standalone-CLI — см. [core/mvp/README.md](./core/mvp/README.md). |
+| [core/codetour](./core/codetour) | Code-tour агент. |
+| [core/shared](./core/shared) | Pydantic-модели конфигов, asyncpg, Redis bus, aioboto3, structlog. |
+| [source2docui](./source2docui) | UI на Next.js 16 / React 19. |
 
-Storage: PostgreSQL (docs + presets + admin sessions), Redis (task streams,
-per-generation event streams, logs, encrypted LLM-config envelopes), Qdrant
-(code chunks for RAG), S3/LocalStack (repos + bundle archives).
+Хранилища:
+
+- **PostgreSQL** — `documentation_bundles`, `documentation_index`,
+  `documentation_pages`, `repositories`, `codetours`, `config_presets`
+  (Fernet-зашифрованный JSON), `admin_sessions`.
+- **Redis** — Streams для задач (`tasks:docgen`, `tasks:repos`, …),
+  per-generation event-streams, логи, зашифрованные LLM-конфиги.
+- **Qdrant** — векторный индекс кода для RAG.
+- **S3 (LocalStack)** — оригиналы репозиториев и собранные bundle-архивы.
+
+Задачи и статус генерации — **только в Redis Streams**. Postgres хранит
+артефакты (документы, репозитории, туры).
 
 ---
 
-## CI / direct HTTP
+## HTTP API
 
 ```bash
-# 1) log in once
+# 1) логин (один раз, кладёт cookie в jar)
 curl -c cookie.jar -X POST http://localhost/api/v1/admin/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"<password>"}'
+  -d '{"username":"admin","password":"<пароль из bootstrap.sh>"}'
 
-# 2) submit a generation task (preset by name)
+# 2) поставить задачу — по имени preset
 curl -b cookie.jar -X POST http://localhost/api/v1/tasks \
   -H "Content-Type: application/json" \
   -d '{"repo_id":"<uuid>","preset":"default"}'
+
+# 3) стрим прогресса (SSE)
+curl -N -b cookie.jar http://localhost/api/v1/streams/<generation_id>/stream
 ```
 
-Public reads need no cookie: `/api/v1/docs/*`, `/api/v1/bundles/export`,
-`/api/v1/codetours`, `/api/v1/streams/*`. CI flows that need to bring their
-own LLM key can POST `llm`/`embeddings`/`qdrant` in the body — that overrides
-the preset field-by-field.
+Публичные read-only роуты — без cookie: `/api/v1/docs/*`,
+`/api/v1/bundles/export`, `/api/v1/codetours`, `/api/v1/streams/*`. CI с
+собственными ключами может слать `llm` / `embeddings` / `qdrant` прямо в
+body — это поле-за-полем перекрывает preset.
 
 ---
 
-## Developer references
+## Документы для разработчиков
 
-- [core/CODING_GUIDELINES.md](./core/CODING_GUIDELINES.md) — Python conventions.
-- [core/TESTING.md](./core/TESTING.md) — running the Python test suite.
-- [source2docui/TESTING.md](./source2docui/TESTING.md) — UI / Playwright tests.
+- [core/CODING_GUIDELINES.md](./core/CODING_GUIDELINES.md) — Python-конвенции.
+- [core/TESTING.md](./core/TESTING.md) — запуск Python-тестов.
+- [source2docui/TESTING.md](./source2docui/TESTING.md) — UI/Playwright-тесты.
 - [core/mvp/README.md](./core/mvp/README.md) — standalone DocGen CLI.
-- [examples/ci/README.md](./examples/ci/README.md) — CI recipes (GitHub Actions, GitLab CI).
+- [examples/ci/README.md](./examples/ci/README.md) — рецепты CI (GitHub Actions, GitLab CI).
 
 ---
 
 ## Troubleshooting
 
-**`docker compose up` fails with `ENCRYPTION_KEY` empty.** You skipped
-`./bootstrap.sh`. Run it.
+**`docker compose up` падает на старте gateway с
+`pydantic.ValidationError: encryption_key field required`.** `.env` пустой
+или `${ENCRYPTION_KEY}` не пробросился. Проверь:
+```bash
+docker compose --profile app config | grep ENCRYPTION_KEY
+```
+Должно быть непустое значение. Если нет — `rm .env && ./bootstrap.sh`.
 
-**Gateway logs `Encryption key is not a valid Fernet key`.** You hand-edited
-`.env` and pasted something that isn't 32 url-safe-base64 bytes. Re-generate
-with `./generate-encryption-key.sh > /tmp/k && sed -i '' "s|ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$(cat /tmp/k)|" .env`
-or just `rm .env && ./bootstrap.sh`.
+**Gateway пишет `Encryption key is not a valid Fernet key`.** Кто-то
+руками поправил `.env` и вставил не-url-safe-base64. Перегенерируй:
+```bash
+rm .env && ./bootstrap.sh
+docker compose --profile app up -d --force-recreate gateway worker-docgen worker-repos worker-bundler worker-codetour
+```
 
-**Admin login returns 401.** The bcrypt hash in `.env` doesn't match the
-password you're typing. Generate a new one: `./generate-admin-password.sh
-"<new password>"` → paste into `.env` under `ADMIN_PASSWORD_HASH=` →
-`docker compose restart gateway`.
+**Admin login возвращает 401.** Bcrypt-хеш в `.env` не от того пароля,
+который ты вводишь. Сгенери новый:
+```bash
+NEW_HASH=$(./generate-admin-password.sh "новый-пароль")
+NEW_HASH_ESC=${NEW_HASH//\$/\$\$}    # удвоить $ для compose
+sed -i '' "s|^ADMIN_PASSWORD_HASH=.*|ADMIN_PASSWORD_HASH=$NEW_HASH_ESC|" .env
+docker compose restart gateway
+```
 
-**LocalStack S3 bucket missing.** `localstack-init/init.sh` runs on first
-container start. If you re-created the container without volumes, the bucket
-is recreated automatically; if you mounted an old volume, run
-`docker compose down -v` and bring it back up.
+**Worker не может расшифровать payload от gateway (`InvalidToken`).**
+`ENCRYPTION_KEY` в `.env` поменялся, но gateway или воркер остались на
+старом значении. `docker compose --profile app up -d --force-recreate`.
+
+**Bucket LocalStack отсутствует.** `localstack-init/init.sh` создаёт
+бакет при первом старте контейнера. Если ты переподключил старый
+named-volume, бакет может потеряться. Лечится:
+```bash
+docker compose --profile app down -v
+docker compose --profile app up -d --build
+```
+
+**Порт 80 уже занят.** Скорее всего, локальный nginx/Apache/Caddy. Либо
+выключи их (`sudo brew services stop nginx` и т. п.), либо поменяй
+порт-маппинг Traefik в `docker-compose.yml` (`"80:80"` → `"8000:80"`) и
+открывай `http://localhost:8000/`.
+
+---
+
+## Лицензия и контрибьюшен
+
+PR welcome. Перед PR прогоняй `ruff` / `mypy` (см. `core/CODING_GUIDELINES.md`)
+и UI-тесты (см. `source2docui/TESTING.md`).
