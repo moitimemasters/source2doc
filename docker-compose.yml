@@ -115,8 +115,12 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
-      - "80:80"
-      - "8080:8080"  # Traefik dashboard (insecure, debug only)
+      # Host ports are overridable so the stack works on hosts where 80
+      # or 8080 are already taken (system nginx, another compose stack,
+      # CI runners). Set TRAEFIK_HTTP_PORT / TRAEFIK_DASHBOARD_PORT in
+      # .env to remap; defaults match the documented localhost URLs.
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"  # dashboard (insecure, debug only)
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
