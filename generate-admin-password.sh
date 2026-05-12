@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate a bcrypt hash for the gateway's admin_password_hash field.
+# Generate bcrypt hash for the gateway's admin_password_hash field.
 # Usage:  ./generate-admin-password.sh <password>
 # Or run without args and the script will prompt (no echo).
 
@@ -16,14 +16,22 @@ if [ -z "$PW" ]; then
     exit 1
 fi
 
-HASH=$(python3 - <<PY
-import sys, bcrypt
-print(bcrypt.hashpw(sys.argv[1].encode(), bcrypt.gensalt()).decode())
-PY
-"$PW")
+run_python() {
+    if python3 -c "import bcrypt" 2>/dev/null; then
+        python3 -c "$1"
+    elif command -v uv >/dev/null 2>&1; then
+        uv run --quiet --with bcrypt python -c "$1"
+    else
+        echo "error: need python3 with bcrypt installed, or uv. Try:" >&2
+        echo "  pip3 install bcrypt" >&2
+        echo "  # or install uv: https://docs.astral.sh/uv/" >&2
+        exit 1
+    fi
+}
 
-echo "Generated bcrypt hash:"
+HASH=$(PW="$PW" run_python '
+import os, bcrypt
+print(bcrypt.hashpw(os.environ["PW"].encode(), bcrypt.gensalt()).decode())
+')
+
 echo "$HASH"
-echo ""
-echo "Add this to core/gateway/config.yaml:"
-echo "admin_password_hash: \"$HASH\""
