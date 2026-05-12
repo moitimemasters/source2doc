@@ -84,6 +84,8 @@ test-results/
 
 # Docker
 .dockerignore
+docker-compose.override.yml
+docker-compose.override.yaml
 
 # Kubernetes secrets
 k8s/secrets.yaml

@@ -1,4 +1,65 @@
+import re
+
 from source2doc.models import docs as doc_models
+
+
+# Strip Sphinx / MyST cross-reference roles like ``{class}`Command` `` or
+# ``{func}`run` `` — MDX 3 parses ``{...}`` as a JSX expression and the
+# role names become bare identifiers (``class`` is a reserved word) and
+# raise SyntaxError. Drop the role prefix and keep the inline-code span.
+_SPHINX_ROLE_RE = re.compile(
+    r"\{(?:class|func|meth|attr|mod|data|exc|obj|const|ref|doc|py:[\w.]+|code)\}(`[^`]+`)"
+)
+
+
+def escape_mdx_text(text: str) -> str:
+    """Make a raw text run safe for inline MDX.
+
+    Two transformations:
+
+    1. Drop Sphinx/MyST inline role prefixes (e.g. ``{class}\\`X\\``` → ``\\`X\\```).
+       Writers trained on Python docs sometimes leak these into prose.
+    2. Escape stray ``{`` / ``}`` outside inline code spans so MDX 3 stops
+       treating them as JSX expression boundaries (`Could not parse
+       expression with acorn` build errors).
+
+    Code blocks are protected by the caller — fenced/inline code is left
+    untouched. This helper only runs on free-form text from
+    paragraphs, headings, list items, callouts, and table cells.
+    """
+    if not text:
+        return text
+
+    text = _SPHINX_ROLE_RE.sub(r"\1", text)
+
+    # Walk the string, skipping inline code spans (``…``). Escape braces
+    # only in the non-code segments.
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "`":
+            # Find matching closing backtick(s) of the same run length.
+            run = 1
+            while i + run < n and text[i + run] == "`":
+                run += 1
+            close = text.find("`" * run, i + run)
+            if close == -1:
+                # Unterminated span; treat the rest as plain text but still
+                # don't escape the leading backticks themselves.
+                out.append(text[i : i + run])
+                i += run
+                continue
+            out.append(text[i : close + run])
+            i = close + run
+            continue
+        if ch in "{}":
+            out.append("\\" + ch)
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
 
 
 def format_block(
@@ -36,11 +97,11 @@ def format_block(
 
 
 def _format_heading(block: doc_models.HeadingBlock) -> list[str]:
-    return [f"{'#' * block.level} {block.text}"]
+    return [f"{'#' * block.level} {escape_mdx_text(block.text)}"]
 
 
 def _format_paragraph(block: doc_models.ParagraphBlock) -> list[str]:
-    return [block.text]
+    return [escape_mdx_text(block.text)]
 
 
 def _format_code(block: doc_models.CodeBlock) -> list[str]:
@@ -55,16 +116,16 @@ def _format_list(block: doc_models.ListBlock) -> list[str]:
     lines = []
     for idx, item in enumerate(block.items):
         prefix = f"{idx + 1}." if block.ordered else "-"
-        lines.append(f"{prefix} {item.text}")
+        lines.append(f"{prefix} {escape_mdx_text(item.text)}")
     return lines
 
 
 def _format_table(block: doc_models.TableBlock) -> list[str]:
     lines = []
-    lines.append("| " + " | ".join(block.headers) + " |")
+    lines.append("| " + " | ".join(escape_mdx_text(h) for h in block.headers) + " |")
     lines.append("| " + " | ".join(["---"] * len(block.headers)) + " |")
     for row in block.rows:
-        lines.append("| " + " | ".join(row) + " |")
+        lines.append("| " + " | ".join(escape_mdx_text(c) for c in row) + " |")
     return lines
 
 
@@ -78,7 +139,7 @@ def _format_callout(block: doc_models.CalloutBlock) -> list[str]:
     icon = variant_map.get(block.variant, "ℹ️")
     return [
         f"> {icon} **{block.variant.upper()}**",
-        f"> {block.text}",
+        f"> {escape_mdx_text(block.text)}",
     ]
 
 
@@ -105,7 +166,7 @@ def _format_cut(
 ) -> list[str]:
     lines = [
         f"<details{' open' if block.default_open else ''}>",
-        f"<summary>{block.title}</summary>",
+        f"<summary>{escape_mdx_text(block.title)}</summary>",
         "",
     ]
     for nested_block in block.blocks:
@@ -116,6 +177,6 @@ def _format_cut(
 
 
 def _format_image(block: doc_models.ImageBlock) -> list[str]:
-    alt_text = block.alt or ""
-    caption = f"\n*{block.caption}*" if block.caption else ""
+    alt_text = escape_mdx_text(block.alt or "")
+    caption = f"\n*{escape_mdx_text(block.caption)}*" if block.caption else ""
     return [f"![{alt_text}]({block.src}){caption}"]

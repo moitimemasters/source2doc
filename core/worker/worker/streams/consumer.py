@@ -298,15 +298,39 @@ async def dispatch_message(
             await task_state_mod.mark_done(redis, stream_name, msg.message_id, task_ttl)
             await ack_message(redis, stream_name, group_name, msg.message_id)
         except Exception as e:
+            current_attempt = attempts + 1
             logger.exception(
                 "message_handler_error",
                 stream=stream_name,
                 message_id=msg.message_id,
                 error=str(e),
+                attempt=current_attempt,
+                max_retries=max_retries,
             )
-            await _emit_task_failure_event_once(
-                redis, msg, stream_name, attempts + 1, str(e) or type(e).__name__, task_ttl,
-            )
+            if current_attempt >= max_retries:
+                # Final attempt exhausted — surface failure + DLQ + ack so
+                # the PEL stops holding this message.
+                await _emit_task_failure_event_once(
+                    redis, msg, stream_name, current_attempt,
+                    str(e) or type(e).__name__, task_ttl,
+                )
+                await _move_to_dlq(redis, stream_name, msg, current_attempt, task_ttl)
+                await task_state_mod.mark_dlq(
+                    redis, stream_name, msg.message_id, task_ttl
+                )
+                await ack_message(redis, stream_name, group_name, msg.message_id)
+            else:
+                # NACK semantics: leave the message in PEL. The periodic
+                # XCLAIM sweep in run_consumer_loop will redeliver it after
+                # min_idle_time_ms so a transient handler failure (network
+                # blip, embedder hiccup) doesn't kill the whole task.
+                logger.warning(
+                    "message_handler_will_retry",
+                    stream=stream_name,
+                    message_id=msg.message_id,
+                    attempt=current_attempt,
+                    max_retries=max_retries,
+                )
     finally:
         structlog.contextvars.clear_contextvars()
 
@@ -436,9 +460,6 @@ async def run_consumer_loop(
     """
     await ensure_consumer_group(redis, stream_name, group_name)
 
-    pending = await claim_pending_messages(
-        redis, stream_name, group_name, consumer_name, min_idle_time_ms
-    )
     in_flight: set[asyncio.Task] = set()
 
     async def dispatch(msg: StreamMessage) -> None:
@@ -458,6 +479,11 @@ async def run_consumer_loop(
         task.add_done_callback(in_flight.discard)
         return task
 
+    # Startup PEL sweep — pick up anything left over from a previous
+    # process (crash, OOM, abrupt restart) before reading new messages.
+    pending = await claim_pending_messages(
+        redis, stream_name, group_name, consumer_name, min_idle_time_ms
+    )
     for msg in pending:
         if semaphore is None:
             await dispatch(msg)
@@ -467,6 +493,14 @@ async def run_consumer_loop(
     # Read up to ``count`` messages per poll. With no semaphore we still poll
     # one at a time so the existing serial-dispatch tests stay deterministic.
     poll_count = 1 if semaphore is None else max(1, concurrency)
+
+    # Periodic PEL recovery — re-claim our own stale messages so that a
+    # transient handler failure (network blip, embedder hiccup) gets a
+    # second/third chance via dispatch_message's max_retries gate. Without
+    # this, a single-worker deployment has zero auto-recovery: NACK'd
+    # messages would sit in PEL forever.
+    pel_sweep_every_polls = max(1, 30_000 // max(1, block_ms))
+    polls_since_sweep = 0
 
     while running():
         try:
@@ -484,6 +518,28 @@ async def run_consumer_loop(
                     await dispatch(msg)
                 else:
                     schedule(msg)
+
+            polls_since_sweep += 1
+            if polls_since_sweep >= pel_sweep_every_polls:
+                polls_since_sweep = 0
+                reclaimed = await claim_pending_messages(
+                    redis,
+                    stream_name,
+                    group_name,
+                    consumer_name,
+                    min_idle_time_ms,
+                )
+                if reclaimed:
+                    logger.info(
+                        "pel_recovery_reclaimed",
+                        stream=stream_name,
+                        count=len(reclaimed),
+                    )
+                    for msg in reclaimed:
+                        if semaphore is None:
+                            await dispatch(msg)
+                        else:
+                            schedule(msg)
 
         except asyncio.CancelledError:
             break

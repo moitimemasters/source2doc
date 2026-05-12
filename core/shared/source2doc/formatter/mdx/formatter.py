@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import yaml
+
 from source2doc.formatter.mdx import blocks
 from source2doc.formatter.mdx.env import MDXFormatterEnv
 from source2doc.models import docs as doc_models
@@ -25,20 +27,13 @@ async def format_bundle(
 
 
 def _format_page(page: doc_models.DocPage) -> str:
-    lines = []
+    lines: list[str] = []
 
-    lines.append("---")
-    lines.append(f"title: {page.title}")
-    lines.append(f"description: {page.summary}")
-    if page.metadata.tags:
-        tags_str = ", ".join(page.metadata.tags)
-        lines.append(f"tags: [{tags_str}]")
-    lines.append("---")
-    lines.append("")
+    lines.append(_render_frontmatter(page))
 
-    lines.append(f"# {page.title}")
+    lines.append(f"# {blocks.escape_mdx_text(page.title)}")
     lines.append("")
-    lines.append(page.summary)
+    lines.append(blocks.escape_mdx_text(page.summary))
     lines.append("")
 
     for block in page.blocks:
@@ -53,6 +48,28 @@ def _format_page(page: doc_models.DocPage) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _render_frontmatter(page: doc_models.DocPage) -> str:
+    # YAML safe-dump quotes any value that contains a colon, hash, leading
+    # whitespace, or other reserved chars — so an LLM-generated title or
+    # summary like ``"Decorators: @command, @group"`` no longer breaks the
+    # frontmatter parser. Tags are emitted as a flow-style list to keep
+    # the look users expect (``tags: [a, b]``).
+    fm: dict[str, object] = {
+        "title": page.title,
+        "description": page.summary,
+    }
+    if page.metadata.tags:
+        fm["tags"] = list(page.metadata.tags)
+    body = yaml.safe_dump(
+        fm,
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
+        width=10_000,
+    ).rstrip("\n")
+    return "---\n" + body + "\n---\n"
 
 
 def _format_navigation(navigation: dict) -> str:

@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 import redis.asyncio as aioredis
 import structlog
+from fastapi import HTTPException
 
 from source2doc import storage as storage_lib
 from source2doc.security.encryption import ConfigEncryption
@@ -51,10 +52,26 @@ async def create_task(
     _set_logfire_trace_attribute(trace_id)
 
     try:
-        task_name = request.name
-        if not task_name:
-            repo = await storage.get_repository(UUID(request.repo_id))
-            task_name = repo.name if repo else f"Documentation for {request.repo_id[:8]}"
+        # Gate on repo readiness: until the repos worker finishes the clone +
+        # S3 upload, `s3_key` is NULL. Kicking off docgen before then fails
+        # downstream with a confusing "Repository not found" from S3, so
+        # reject here with a clear message instead.
+        repo = await storage.get_repository(UUID(request.repo_id))
+        if repo is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Repository not found: {request.repo_id}",
+            )
+        if not repo.s3_key:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Repository is still being cloned. Wait for the clone to "
+                    "finish (status will turn ready) and try again."
+                ),
+            )
+
+        task_name = request.name or repo.name or f"Documentation for {request.repo_id[:8]}"
 
         resolved = await resolve_configs(
             request_llm=request.llm,
@@ -176,6 +193,22 @@ async def create_iterative_task(
 
     repo_uuid = UUID(request.repo_id)
 
+    # See ``create_task``: reject before queuing if the clone hasn't
+    # finished, otherwise docgen fails midway with a confusing S3 error.
+    repo = await storage.get_repository(repo_uuid)
+    if repo is None:
+        raise HTTPException(
+            status_code=404, detail=f"Repository not found: {request.repo_id}"
+        )
+    if not repo.s3_key:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Repository is still being cloned. Wait for the clone to "
+                "finish and try again."
+            ),
+        )
+
     # Validate that the caller gave us *something* the worker can turn
     # into a (changed, deleted) pair. The handler accepts either an
     # explicit list or a commit range — but not neither, because that
@@ -226,7 +259,6 @@ async def create_iterative_task(
     try:
         task_name = request.name
         if not task_name:
-            repo = await storage.get_repository(repo_uuid)
             base_label = base_generation_id[:8]
             task_name = (
                 f"Iterative update of {repo.name}" if repo else f"Iterative {base_label}"

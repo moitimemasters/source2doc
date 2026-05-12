@@ -41,7 +41,7 @@ function splitLines(value: string): string[] {
 
 export function AdminGenerateForm() {
     const router = useRouter();
-    const { repositories, loading: reposLoading } = useRepositories();
+    const { repositories, loading: reposLoading, refetch: refetchRepos } = useRepositories();
 
     const [mode, setMode] = useState<GenerationMode>("full");
     const [repoId, setRepoId] = useState("");
@@ -211,16 +211,30 @@ export function AdminGenerateForm() {
                                 />
                             </SelectTrigger>
                             <SelectContent>
-                                {repositories.map((repo) => (
-                                    <SelectItem
-                                        key={repo.repo_id}
-                                        value={repo.repo_id}
-                                    >
-                                        {repo.name}
-                                    </SelectItem>
-                                ))}
+                                {repositories.map((repo) => {
+                                    const cloning = !repo.s3_key;
+                                    return (
+                                        <SelectItem
+                                            key={repo.repo_id}
+                                            value={repo.repo_id}
+                                            disabled={cloning}
+                                        >
+                                            {repo.name}
+                                            {cloning ? " — cloning…" : ""}
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
+                        {repositories.some((r) => !r.s3_key) && (
+                            <button
+                                type="button"
+                                onClick={() => refetchRepos()}
+                                className="text-xs text-muted-foreground underline hover:text-foreground"
+                            >
+                                Some repositories are still cloning — refresh
+                            </button>
+                        )}
                     </div>
 
                     <div className="space-y-2">
