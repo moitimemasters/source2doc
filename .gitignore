@@ -114,9 +114,11 @@ out/
 # Vercel
 .vercel
 
-
-
+# Local-only UI / preset config containing real LLM api_key. There is no
+# *.example variant in the public tree — generate your preset through the
+# admin UI at /admin/presets instead.
 config.ui.yaml
+
 .worktrees
 
 # Local-dev component configs that may contain real LLM keys. The docker-mounted
