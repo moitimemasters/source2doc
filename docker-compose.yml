@@ -360,5 +360,4 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 172.30.0.0/24
         - subnet: fd00:dead:beef::/64
