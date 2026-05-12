@@ -23,6 +23,61 @@ gen_password() {
 }
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_password)}"
 
+# Returns 0 when something is already listening on $1 (TCP, loopback).
+# Uses bash's /dev/tcp so we don't depend on lsof / ss / nc being installed.
+# The subshell scope makes the FD self-close on exit; we never see FD3 here.
+port_in_use() {
+    local port=$1
+    if (: < /dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# Prompts for a host port for a stack component. Tries the default first;
+# if it's busy, asks the user for an alternate (or accepts the busy value
+# anyway — Docker will fail loudly at `up` time if it really collides).
+# Non-interactive mode (NONINTERACTIVE=1 or stdin not a TTY) skips the
+# prompt and just warns about conflicts.
+pick_port() {
+    local var_name=$1 default=$2 description=$3
+    local chosen=$default
+
+    if port_in_use "$default"; then
+        if [ "${NONINTERACTIVE:-0}" = "1" ] || [ ! -t 0 ]; then
+            echo "  WARN: ${description} default :${default} is already in use — ${var_name} unset, docker may fail to bind." >&2
+        else
+            echo "  ${description} default :${default} is already in use." >&2
+            while true; do
+                read -r -p "    Pick another port for ${var_name} (blank to keep ${default}): " chosen </dev/tty
+                chosen=${chosen:-$default}
+                if ! [[ $chosen =~ ^[0-9]+$ ]] || [ "$chosen" -lt 1 ] || [ "$chosen" -gt 65535 ]; then
+                    echo "    invalid port: $chosen" >&2
+                    chosen=$default
+                    continue
+                fi
+                if [ "$chosen" != "$default" ] && port_in_use "$chosen"; then
+                    echo "    :$chosen is also in use, try again" >&2
+                    continue
+                fi
+                break
+            done
+        fi
+    fi
+
+    printf -v "$var_name" '%s' "$chosen"
+}
+
+echo "Checking host ports..."
+pick_port TRAEFIK_HTTP_PORT       80   "Traefik HTTP (UI + API ingress)"
+pick_port TRAEFIK_DASHBOARD_PORT  8080 "Traefik dashboard"
+pick_port POSTGRES_HOST_PORT      5432 "Postgres"
+pick_port REDIS_HOST_PORT         6379 "Redis"
+pick_port QDRANT_HOST_PORT        6333 "Qdrant HTTP"
+pick_port QDRANT_GRPC_HOST_PORT   6334 "Qdrant gRPC"
+pick_port LOCALSTACK_HOST_PORT    4566 "LocalStack"
+pick_port PGADMIN_HOST_PORT       5050 "pgAdmin"
+
 echo "Generating encryption key..."
 ENCRYPTION_KEY=$(./generate-encryption-key.sh)
 
@@ -49,6 +104,17 @@ ADMIN_PASSWORD_HASH=$ADMIN_PASSWORD_HASH_ESCAPED
 
 # PostgreSQL password — shared by the postgres container, gateway, and workers.
 POSTGRES_PASSWORD=docgen_password
+
+# Host-side port mappings for the compose stack. Edit and re-up to remap.
+# In-cluster traffic uses service names, so these only affect external access.
+TRAEFIK_HTTP_PORT=$TRAEFIK_HTTP_PORT
+TRAEFIK_DASHBOARD_PORT=$TRAEFIK_DASHBOARD_PORT
+POSTGRES_HOST_PORT=$POSTGRES_HOST_PORT
+REDIS_HOST_PORT=$REDIS_HOST_PORT
+QDRANT_HOST_PORT=$QDRANT_HOST_PORT
+QDRANT_GRPC_HOST_PORT=$QDRANT_GRPC_HOST_PORT
+LOCALSTACK_HOST_PORT=$LOCALSTACK_HOST_PORT
+PGADMIN_HOST_PORT=$PGADMIN_HOST_PORT
 EOF
 
 cat <<EOF
@@ -65,6 +131,6 @@ SAVE THIS PASSWORD NOW — it is not stored anywhere else.
 Next step:
   docker compose --profile app up -d --build
 
-Then open http://localhost/ and log in at /admin/login.
+Then open http://localhost:${TRAEFIK_HTTP_PORT}/ and log in at /admin/login.
 ============================================================
 EOF
