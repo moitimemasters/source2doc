@@ -357,7 +357,7 @@ volumes:
 networks:
   source2doc:
     driver: bridge
-    enable_ipv6: true
-    ipam:
-      config:
-        - subnet: fd00:dead:beef::/64
+    # IPv6 / custom subnet pinning live in docker-compose.override.yml so
+    # the base stack stays portable across hosts that already use
+    # 172.30.0.0/24 or the fd00::/8 ULA range for other Docker networks
+    # (VPN tunnels, k3s, other compose stacks).
