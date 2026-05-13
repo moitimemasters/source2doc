@@ -118,7 +118,7 @@ services:
     # too old. Minimum supported API version is 1.44". Override via .env
     # if the host daemon needs a different value.
     environment:
-      DOCKER_API_VERSION: "${DOCKER_API_VERSION:-1.44}"
+      DOCKER_API_VERSION: "${DOCKER_API_VERSION:-1.47}"
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
