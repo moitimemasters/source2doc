@@ -149,6 +149,29 @@
   }
 }
 
+/* React Flow dark theme — xyflow ships a light-only stylesheet, so we
+   re-tint the chrome (controls, attribution, minimap) and ensure edge
+   labels remain legible against the dark background. */
+html.dark .react-flow__controls {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+html.dark .react-flow__controls-button {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  fill: var(--foreground);
+  color: var(--foreground);
+}
+
+html.dark .react-flow__controls-button:hover {
+  background: var(--muted);
+}
+
+html.dark .react-flow__edge-text {
+  fill: var(--foreground);
+}
+
 /* Shiki (dual themes) */
 .wiki-code .shiki {
   margin: 0;

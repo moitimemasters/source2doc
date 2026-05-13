@@ -76,13 +76,11 @@ export function LLMSessionsPanel() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>LLM session locks</CardTitle>
+                    <CardTitle>Active LLM sessions</CardTitle>
                     <CardDescription>
-                        Cluster-wide cap on parallel ``agent.run`` invocations,
-                        keyed by ``sha256(api_key)[:16]``. Tokens carry the
-                        worker process id and agent role so you can see who&apos;s
-                        currently holding each slot. Polled every{" "}
-                        {POLL_INTERVAL_MS / 1000}s.
+                        How many generation slots each API key is using right
+                        now, and which worker is holding each slot. Refreshes
+                        every {POLL_INTERVAL_MS / 1000}s.
                     </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -137,12 +135,12 @@ export function LLMSessionsPanel() {
                     >
                         <div className="flex items-center justify-between mb-2">
                             <div>
-                                <code className="font-mono text-sm">
+                                <span className="text-xs text-muted-foreground">
+                                    API key
+                                </span>
+                                <code className="ml-2 font-mono text-sm">
                                     {entry.api_key_hash}
                                 </code>
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                    sha256(api_key)[:16]
-                                </span>
                             </div>
                             <div className="text-sm font-medium">
                                 {entry.active} active

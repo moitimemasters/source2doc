@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2, Sparkles, X } from "lucide-react";
 
@@ -52,7 +53,37 @@ export function CodeTourInput({ generationId }: CodeTourInputProps) {
     const { info, loading: runtimeLoading } = useRuntimeInfo();
     const configured = info?.configured ?? false;
 
+    // Portal the floating panel into document.body so its stacking
+    // context is independent of the wiki layout (avoids overlaps with
+    // sticky sub-headers and lets z-[70] sit above sheets reliably).
+    const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        setPortalEl(document.body);
+    }, []);
+
+    // Radix dialogs/sheets aria-hide every sibling of the active portal
+    // and toggle ``data-scroll-locked`` on <body>. Anything outside the
+    // dialog (including this floating button) becomes pointer-events:
+    // none — visually present, but unclickable. Hide our floating panel
+    // entirely whenever a Radix overlay owns the screen.
+    const [overlayActive, setOverlayActive] = useState(false);
+    useEffect(() => {
+        const body = document.body;
+        const update = () =>
+            setOverlayActive(body.hasAttribute("data-scroll-locked"));
+        update();
+        const observer = new MutationObserver(update);
+        observer.observe(body, {
+            attributes: true,
+            attributeFilter: ["data-scroll-locked"],
+        });
+        return () => observer.disconnect();
+    }, []);
+
     if (!generationId) {
+        return null;
+    }
+    if (overlayActive) {
         return null;
     }
 
@@ -85,8 +116,12 @@ export function CodeTourInput({ generationId }: CodeTourInputProps) {
         }
     }
 
+    if (!portalEl) {
+        return null;
+    }
+
     if (!open) {
-        return (
+        return createPortal(
             <Button
                 type="button"
                 onClick={() => setOpen(true)}
@@ -96,11 +131,12 @@ export function CodeTourInput({ generationId }: CodeTourInputProps) {
             >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Code Tour
-            </Button>
+            </Button>,
+            portalEl,
         );
     }
 
-    return (
+    return createPortal(
         <Card className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-2xl p-4 shadow-lg border-2 z-[70] max-h-[calc(100vh-5rem)] overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -219,6 +255,7 @@ export function CodeTourInput({ generationId }: CodeTourInputProps) {
                     </div>
                 )}
             </form>
-        </Card>
+        </Card>,
+        portalEl,
     );
 }

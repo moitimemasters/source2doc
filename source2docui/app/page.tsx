@@ -2,7 +2,7 @@ import Link from "next/link";
 import { projectLoader } from "@/lib/wiki/project-loader";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ExternalLink, Activity, Package } from "lucide-react";
+import { BookOpen, ExternalLink, Activity, Package, Sparkles } from "lucide-react";
 
 export default async function Home() {
     const registry = await projectLoader.loadRegistry();
@@ -21,8 +21,15 @@ export default async function Home() {
                         </p>
                         <div className="flex flex-wrap gap-4 justify-center">
                             <Link
-                                href="/streams"
+                                href="/admin/generate"
                                 className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                            >
+                                <Sparkles className="h-5 w-5" />
+                                Generate Documentation
+                            </Link>
+                            <Link
+                                href="/streams"
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
                             >
                                 <Activity className="h-5 w-5" />
                                 Monitor Generation Streams

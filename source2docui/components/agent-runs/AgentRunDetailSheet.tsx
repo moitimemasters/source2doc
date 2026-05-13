@@ -10,6 +10,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
+import { ThemedJsonView } from "@/components/ui/themed-json-view";
 import type { AgentRunDetail, AgentRunSummary } from "./types";
 
 interface AgentRunDetailSheetProps {
@@ -61,14 +62,6 @@ function useAgentRunDetail(runId: number | null) {
     }, [runId]);
 
     return { detail, loading, error };
-}
-
-function formatJson(value: unknown): string {
-    try {
-        return JSON.stringify(value, null, 2);
-    } catch {
-        return String(value);
-    }
 }
 
 export function AgentRunDetailSheet({
@@ -172,9 +165,16 @@ export function AgentRunDetailSheet({
                                 <h3 className="text-sm font-semibold mb-2">
                                     Messages
                                 </h3>
-                                <pre className="rounded-md border border-border bg-muted/40 p-3 text-[11px] font-mono leading-snug overflow-x-auto whitespace-pre-wrap break-words">
-                                    {formatJson(detail.messages)}
-                                </pre>
+                                <div className="rounded-md border border-border bg-muted/40 p-3 overflow-x-auto">
+                                    <ThemedJsonView
+                                        value={
+                                            (detail.messages as object) ?? {}
+                                        }
+                                        collapsed={2}
+                                        displayDataTypes={false}
+                                        style={{ fontSize: "11px" }}
+                                    />
+                                </div>
                             </section>
 
                             {detail.output != null && (
@@ -182,9 +182,20 @@ export function AgentRunDetailSheet({
                                     <h3 className="text-sm font-semibold mb-2">
                                         Output
                                     </h3>
-                                    <pre className="rounded-md border border-border bg-muted/40 p-3 text-[11px] font-mono leading-snug overflow-x-auto whitespace-pre-wrap break-words">
-                                        {formatJson(detail.output)}
-                                    </pre>
+                                    <div className="rounded-md border border-border bg-muted/40 p-3 overflow-x-auto">
+                                        <ThemedJsonView
+                                            value={
+                                                typeof detail.output ===
+                                                    "object" &&
+                                                detail.output !== null
+                                                    ? (detail.output as object)
+                                                    : { value: detail.output }
+                                            }
+                                            collapsed={2}
+                                            displayDataTypes={false}
+                                            style={{ fontSize: "11px" }}
+                                        />
+                                    </div>
                                 </section>
                             )}
                         </>

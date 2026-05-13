@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import JsonView from "@uiw/react-json-view";
+import { ThemedJsonView } from "@/components/ui/themed-json-view";
 
 interface SingleEventItemProps {
     event: StreamEvent;
@@ -113,14 +113,11 @@ export function SingleEventItem({ event, index }: SingleEventItemProps) {
                     onKeyDown={(e) => e.stopPropagation()}
                 >
                     <div className="mt-2">
-                        <JsonView
+                        <ThemedJsonView
                             value={event.data}
                             collapsed={false}
                             displayDataTypes={false}
-                            style={{
-                                fontSize: "11px",
-                                fontFamily: "var(--font-mono)",
-                            }}
+                            style={{ fontSize: "11px" }}
                         />
                     </div>
                 </div>

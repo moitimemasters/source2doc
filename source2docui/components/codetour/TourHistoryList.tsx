@@ -138,7 +138,7 @@ export function TourHistoryList({
         return (
             <Card className="p-10 text-center">
                 <p className="text-muted-foreground">
-                    Ещё нет туров. Создай первый тур из wiki-страницы проекта.
+                    No tours yet. Start one from a project wiki page.
                 </p>
             </Card>
         );

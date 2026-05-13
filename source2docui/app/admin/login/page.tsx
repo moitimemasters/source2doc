@@ -49,8 +49,7 @@ function AdminLoginForm() {
             <div>
                 <h1 className="text-2xl font-semibold">Admin sign-in</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Use the credentials configured in
-                    <code className="mx-1">core/gateway/config.docker.yaml</code>.
+                    Sign in with your administrator credentials to continue.
                 </p>
             </div>
             <div className="space-y-2">

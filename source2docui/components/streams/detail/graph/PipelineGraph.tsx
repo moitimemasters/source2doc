@@ -78,8 +78,17 @@ function buildEdges(
                 pathOptions: isLoop ? { borderRadius: 24 } : undefined,
                 animated: isActiveTarget && !isLoop,
                 label,
-                labelStyle: { fontSize: 11, fontWeight: 500 },
-                labelBgStyle: { fill: "var(--background)", opacity: 0.95 },
+                labelStyle: {
+                    fontSize: 11,
+                    fontWeight: 500,
+                    fill: "var(--foreground)",
+                },
+                labelShowBg: true,
+                labelBgStyle: {
+                    fill: "var(--background)",
+                    fillOpacity: 0.95,
+                    stroke: "var(--border)",
+                },
                 labelBgPadding: [8, 4] as [number, number],
                 labelBgBorderRadius: 4,
                 style: {

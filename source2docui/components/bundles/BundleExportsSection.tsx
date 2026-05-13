@@ -44,10 +44,32 @@ function formatBytes(bytes?: number) {
     return `${v.toFixed(fixed)} ${units[i]}`;
 }
 
+function formatTimestamp(value?: string | null) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString();
+}
+
+function bundleDisplayName(b: {
+    name?: string | null;
+    project_name?: string | null;
+    repository?: { name?: string | null } | null;
+    id: number;
+}): string {
+    return (
+        b.project_name ||
+        b.name ||
+        b.repository?.name ||
+        `Bundle #${b.id}`
+    );
+}
+
 export function BundleExportsSection() {
     const { bundles, error: bundlesError } = useBundlesList();
     const [bundleId, setBundleId] = useState<number | null>(null);
 
+    const selectedBundle = bundles.find((b) => b.id === bundleId) ?? null;
     const { exports, loading, error, refetch } = useBundleExports(bundleId);
 
     const handleDownload = async (s3Key: string) => {
@@ -110,13 +132,11 @@ export function BundleExportsSection() {
                             {bundles.map((b) => (
                                 <SelectItem key={b.id} value={String(b.id)}>
                                     <div className="flex flex-col">
-                                        <span>
-                                            {b.project_name ||
-                                                b.name ||
-                                                `Bundle #${b.id}`}
-                                        </span>
+                                        <span>{bundleDisplayName(b)}</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {b.generation_id}
+                                            {b.created_at
+                                                ? formatTimestamp(b.created_at)
+                                                : b.generation_id}
                                         </span>
                                     </div>
                                 </SelectItem>
@@ -152,45 +172,68 @@ export function BundleExportsSection() {
                         No exports found in S3 for this bundle.
                     </div>
                 ) : (
-                    <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Format</TableHead>
-                                    <TableHead>S3 key</TableHead>
-                                    <TableHead className="text-right">Size</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {exports.map((e) => (
-                                    <TableRow key={e.s3_key}>
-                                        <TableCell className="font-mono text-xs">
-                                            {e.format}
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs truncate max-w-[380px]">
-                                            {e.s3_key}
-                                        </TableCell>
-                                        <TableCell className="text-right text-xs text-muted-foreground">
-                                            {formatBytes(e.size)}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleDownload(e.s3_key)
-                                                }
-                                            >
-                                                <Download className="h-4 w-4 mr-2" />
-                                                Download archive
-                                            </Button>
-                                        </TableCell>
+                    <>
+                        {selectedBundle && (
+                            <div className="text-sm text-muted-foreground">
+                                Exports for{" "}
+                                <span className="font-medium text-foreground">
+                                    {bundleDisplayName(selectedBundle)}
+                                </span>
+                                {selectedBundle.created_at && (
+                                    <>
+                                        {" "}
+                                        · created{" "}
+                                        {formatTimestamp(
+                                            selectedBundle.created_at,
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Format</TableHead>
+                                        <TableHead>Exported</TableHead>
+                                        <TableHead className="text-right">
+                                            Size
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            Action
+                                        </TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {exports.map((e) => (
+                                        <TableRow key={e.s3_key}>
+                                            <TableCell className="font-medium">
+                                                {e.format}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {formatTimestamp(e.last_modified)}
+                                            </TableCell>
+                                            <TableCell className="text-right text-xs text-muted-foreground">
+                                                {formatBytes(e.size)}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleDownload(e.s3_key)
+                                                    }
+                                                >
+                                                    <Download className="h-4 w-4 mr-2" />
+                                                    Download archive
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 )}
             </CardContent>
         </Card>
