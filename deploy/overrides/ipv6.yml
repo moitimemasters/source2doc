@@ -1,0 +1,30 @@
+# Enables IPv6 on the source2doc bridge network so containers can reach
+# AAAA-only endpoints (corporate VPNs, internal DNS resolvers that only
+# publish IPv6 records, etc.).
+#
+# Enable via .env:
+#   COMPOSE_FILE=docker-compose.yml:deploy/overrides/ipv6.yml
+# Or per-command:
+#   docker compose -f docker-compose.yml -f deploy/overrides/ipv6.yml --profile app up -d --build
+#
+# To pin VPN-internal hostnames to a specific AAAA, drop a second override
+# (e.g. docker-compose.override.yml — gitignored) that adds extra_hosts on
+# the gateway / worker-* services:
+#
+#   services:
+#     gateway:
+#       extra_hosts:
+#         - "api.example.internal:fd00::1234"
+#     worker-docgen:
+#       extra_hosts:
+#         - "api.example.internal:fd00::1234"
+#
+# Refresh AAAA records with `dig <host> AAAA +short` and update accordingly.
+
+networks:
+  source2doc:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+        - subnet: fd00:dead:beef::/64

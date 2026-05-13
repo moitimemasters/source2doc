@@ -68,6 +68,43 @@ pick_port() {
     printf -v "$var_name" '%s' "$chosen"
 }
 
+# Asks one yes/no question and prints `y` / `n` on stdout. Same TTY rules
+# as pick_port — under NONINTERACTIVE or no TTY the default wins silently.
+ask_yes_no() {
+    local prompt=$1 default=$2 answer
+    if [ "${NONINTERACTIVE:-0}" = "1" ] || [ ! -t 0 ]; then
+        echo "$default"
+        return
+    fi
+    while true; do
+        local hint
+        if [ "$default" = "y" ]; then hint="[Y/n]"; else hint="[y/N]"; fi
+        read -r -p "  ${prompt} ${hint}: " answer </dev/tty
+        answer=${answer:-$default}
+        case "$answer" in
+            y|Y|yes|YES) echo "y"; return ;;
+            n|N|no|NO)   echo "n"; return ;;
+            *) echo "    answer y or n" >&2 ;;
+        esac
+    done
+}
+
+# Compose overrides live in deploy/overrides/. Bootstrap toggles them by
+# writing COMPOSE_FILE into .env so `docker compose` picks them up
+# automatically. Multiple overrides chain with ":".
+COMPOSE_FILES="docker-compose.yml"
+echo "Overrides..."
+if [ "$(ask_yes_no "Enable IPv6 networking (deploy/overrides/ipv6.yml — corp VPN / AAAA-only endpoints)?" n)" = "y" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES:deploy/overrides/ipv6.yml"
+fi
+# Auto-pick up a user-local override (gitignored) when present. Setting
+# COMPOSE_FILE explicitly disables compose's implicit auto-load, so we
+# re-add it here to preserve the historical behaviour.
+if [ -f docker-compose.override.yml ]; then
+    echo "  Detected docker-compose.override.yml — including in the chain."
+    COMPOSE_FILES="$COMPOSE_FILES:docker-compose.override.yml"
+fi
+
 echo "Checking host ports..."
 pick_port TRAEFIK_HTTP_PORT       80   "Traefik HTTP (UI + API ingress)"
 pick_port TRAEFIK_DASHBOARD_PORT  8080 "Traefik dashboard"
@@ -104,6 +141,10 @@ ADMIN_PASSWORD_HASH=$ADMIN_PASSWORD_HASH_ESCAPED
 
 # PostgreSQL password — shared by the postgres container, gateway, and workers.
 POSTGRES_PASSWORD=docgen_password
+
+# Compose file chain — picks up files from deploy/overrides/. Edit to
+# toggle overrides without re-running bootstrap.
+COMPOSE_FILE=$COMPOSE_FILES
 
 # Host-side port mappings for the compose stack. Edit and re-up to remap.
 # In-cluster traffic uses service names, so these only affect external access.
