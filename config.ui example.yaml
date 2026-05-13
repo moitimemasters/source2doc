@@ -1,0 +1,32 @@
+# UUID of an already-cloned/uploaded repository (returned by POST /api/v1/repos/clone
+# or POST /api/v1/repos/upload). Replace this placeholder with the real id before
+# sending the file to POST /api/v1/tasks.
+repo_id: REPLACE_WITH_REPOSITORY_UUID
+
+llm:
+  provider: openai-compatible
+  model: default
+  api_key: xxx
+  base_url: https://api.eliza.yandex.net/internal/qwen3-5-397b-a17b-fp8/v1
+  temperature: 0.2
+  max_tokens: 8000
+  max_sessions: 3
+
+embeddings:
+  provider: openai-compatible
+  model: Qodo-Embed-1-7B
+  api_key: xxx
+  base_url: https://api.eliza.yandex.net/raw/internal/embedder-qodo/v1
+  dimensions: 3584
+  batch_size: 500
+  concurrency: 4
+
+generation:
+  min_citations: 3
+  max_nodes: 10
+  chunk_size: 1000
+  chunk_overlap: 200
+  search_limit: 3
+  min_page_score: 7
+  max_page_retries: 2
+  max_hallucination_retries: 3
