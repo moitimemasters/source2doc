@@ -109,7 +109,7 @@ services:
   # Dev ports `8003:8003` (gateway) and `3001:3000` (ui) are kept so existing
   # local workflows keep working alongside the new `:80` ingress.
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.4
     container_name: source2doc-traefik
     restart: unless-stopped
     # Pin the Docker API version traefik negotiates with the daemon.
