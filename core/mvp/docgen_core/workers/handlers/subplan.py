@@ -334,6 +334,25 @@ async def handle_subplan_completed(
     )
 
     ctx.expected_pages = len(flat_page_specs)
+    # Persist immediately. The dispatcher's blanket ctx-save no longer
+    # touches expected_pages, so this is the canonical write for full-mode.
+    # Without it the next event would load ctx with expected=0 and
+    # ``is_complete()`` would fire after the first page lands.
+    redis_client = getattr(env, "redis", None)
+    if redis_client is not None and ctx.expected_pages > 0:
+        try:
+            await redis_client.hset(
+                f"state:docgen:{generation_id}",
+                "expected_pages",
+                str(ctx.expected_pages),
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive
+            logger.warning(
+                "subplan_expected_pages_persist_failed",
+                generation_id=generation_id,
+                expected=ctx.expected_pages,
+                error=str(exc),
+            )
     ctx.completed_pages.clear()
     for page_spec in flat_page_specs:
         page_id = page_spec["page_id"]

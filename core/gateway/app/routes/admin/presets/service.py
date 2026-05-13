@@ -16,6 +16,7 @@ def _serialize_agent_override(override: dto.AgentLLMOverride) -> dict:
         "base_url": override.base_url,
         "temperature": override.temperature,
         "max_tokens": override.max_tokens,
+        "max_sessions": override.max_sessions,
     }
 
 
@@ -28,6 +29,7 @@ def _serialize_payload(payload: dto.PresetPayload) -> dict:
             "base_url": payload.llm.base_url,
             "temperature": payload.llm.temperature,
             "max_tokens": payload.llm.max_tokens,
+            "max_sessions": payload.llm.max_sessions,
         },
         "embeddings": {
             "provider": payload.embeddings.provider,

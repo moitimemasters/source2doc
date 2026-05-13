@@ -8,6 +8,19 @@ class LLMPresetConfig(BaseModel):
     base_url: str | None = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4000, gt=0)
+    max_sessions: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Cluster-wide cap on parallel LLM sessions for this API key. "
+            "Mirrors ``LLMConfigRequest.max_sessions``; without it the "
+            "worker's session-lock falls back to its in-process semaphore, "
+            "which doesn't coordinate with sibling tasks. Set this on the "
+            "preset to your provider's inflight limit (Eliza default: 5) so "
+            "users who run with a preset and no inline ``llm`` override "
+            "still get cluster-wide throttling."
+        ),
+    )
 
 
 class EmbeddingsPresetConfig(BaseModel):
@@ -35,6 +48,7 @@ class AgentLLMOverride(BaseModel):
     base_url: str | None = None
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4000, gt=0)
+    max_sessions: int | None = Field(default=None, ge=1)
 
 
 class AgentOverridesPreset(BaseModel):

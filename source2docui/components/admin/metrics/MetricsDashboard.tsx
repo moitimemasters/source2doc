@@ -206,10 +206,14 @@ export function MetricsDashboard() {
                             </CardContent>
                         </Card>
                     </div>
-
-                    <LLMSessionsPanel />
                 </>
             )}
+
+            {/* Live session-lock metrics are independent of the historical
+                aggregate query above — they reflect what's running right now
+                across the cluster, so render them even when the selected
+                date range has no token data. */}
+            <LLMSessionsPanel />
         </div>
     );
 }

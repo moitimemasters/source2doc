@@ -368,6 +368,27 @@ async def handle(
     ctx.completed_pages.clear()
     ctx.failed_pages.clear()
 
+    # Canonical write of ``expected_pages`` for iterative mode. The
+    # dispatcher's blanket ctx-save no longer flushes this field — only
+    # planning handlers do (this one + subplan + write.handle_plan) — so
+    # this HSET is the single source of truth before the first
+    # ``page.write_requested`` lands on a sibling worker.
+    redis_client = getattr(env, "redis", None)
+    if redis_client is not None and ctx.expected_pages > 0:
+        try:
+            await redis_client.hset(
+                f"state:docgen:{generation_id}",
+                "expected_pages",
+                str(ctx.expected_pages),
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive
+            logger.warning(
+                "iterative_expected_pages_persist_failed",
+                generation_id=generation_id,
+                expected=ctx.expected_pages,
+                error=str(exc),
+            )
+
     if ctx.expected_pages == 0:
         # Nothing to write — every page was either copied verbatim or
         # marked deprecated. Synthesise generation.completed directly.

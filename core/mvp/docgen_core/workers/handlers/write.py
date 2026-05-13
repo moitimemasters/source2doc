@@ -56,8 +56,26 @@ async def handle_plan(
 
     # The aggregator already populated ctx.expected_pages / ctx.page_specs /
     # ctx.page_attempts and created the bundle. Re-cap expected_pages here so
-    # the max_nodes truncation is reflected.
+    # the max_nodes truncation is reflected. Persist immediately for the same
+    # reason as in the subplan aggregator — the dispatcher's blanket save no
+    # longer flushes expected_pages, and the first page.write_requested could
+    # otherwise be picked up by a sibling with ctx.expected_pages=0.
     ctx.expected_pages = len(page_specs)
+    redis_client = getattr(env, "redis", None)
+    if redis_client is not None and ctx.expected_pages > 0:
+        try:
+            await redis_client.hset(
+                f"state:docgen:{generation_id}",
+                "expected_pages",
+                str(ctx.expected_pages),
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive
+            logger.warning(
+                "write_plan_expected_pages_persist_failed",
+                generation_id=generation_id,
+                expected=ctx.expected_pages,
+                error=str(exc),
+            )
 
     for page_spec in page_specs:
         await env.event_bus.emit(

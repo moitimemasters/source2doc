@@ -533,14 +533,18 @@ async def _save_context_to_state(
     )
 
     # Scalars: single HSET, atomic, last-writer-wins is fine because
-    # these are either set-once (bundle_id, expected_pages,
-    # dominant_language) or rare. The hot per-page collections live
-    # outside this hash.
+    # bundle_id / dominant_language are truly set-once in a stable handler
+    # (subplan/incremental) and other handlers don't mutate them. Note
+    # that ``expected_pages`` is deliberately NOT flushed here — only the
+    # planning handlers (subplan, write.handle_plan, incremental) write
+    # it via an explicit ``HSET state:docgen:{gen} expected_pages``, so a
+    # concurrent stale-ctx handler from the ingest tail can't clobber the
+    # planner's count with a zero (which would trip ``is_complete()``
+    # after the first page and tear down a half-filled bundle).
     await state_mod.save_scalars(
         redis,
         generation_id,
         bundle_id=bundle_id,
-        expected_pages=ctx.expected_pages,
         dominant_language=ctx.dominant_language,
     )
 
