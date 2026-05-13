@@ -3,5 +3,12 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 COPY core/ core/
 RUN cd core && uv sync --package source2doc-gateway --no-dev --frozen
+
+# Call the venv binary directly instead of `uv run`. `uv run` re-checks
+# the lock against the workspace and tries to fetch hatchling et al. on
+# every container start, which fails on hosts without outbound PyPI
+# access (corporate VMs, air-gapped CI). The build step already produced
+# a fully-resolved .venv, so we just invoke its console script.
+ENV PATH=/app/core/.venv/bin:$PATH
 WORKDIR /app/core/gateway
-CMD ["uv", "run", "gateway", "--config", "config.yaml"]
+CMD ["gateway", "--config", "config.yaml"]

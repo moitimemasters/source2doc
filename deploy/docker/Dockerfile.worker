@@ -55,6 +55,13 @@ COPY core/ core/
 RUN cd core && uv sync --package source2doc-worker --no-dev --frozen
 COPY deploy/docker/worker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Call the venv binary directly instead of `uv run`. `uv run` re-checks
+# the lock against the workspace and tries to fetch hatchling et al. on
+# every container start, which fails on hosts without outbound PyPI
+# access (corporate VMs, air-gapped CI). The build step already produced
+# a fully-resolved .venv, so we just invoke its console script.
+ENV PATH=/app/core/.venv/bin:$PATH
 WORKDIR /app/core/worker
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["uv", "run", "worker", "docgen"]
+CMD ["worker", "docgen"]
