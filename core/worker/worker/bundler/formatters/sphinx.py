@@ -22,12 +22,19 @@ async def format_bundle(
         pages, output_dir, mermaid_render_mode
     )
 
+    # Always ensure the mermaid/ directory exists so the Dockerfile's
+    # ``COPY mermaid ./mermaid`` step never fails on empty bundles.
+    (output_dir / "mermaid").mkdir(parents=True, exist_ok=True)
+
+    page_ids = set(pages.keys())
+    extension = env.get_file_extension()
+
     for page_id, page in pages.items():
-        content = _format_page(page, mermaid_paths)
-        page_path = output_dir / f"{page_id}{env.get_file_extension()}"
+        content = _format_page(page, mermaid_paths, page_ids)
+        page_path = output_dir / f"{page_id}{extension}"
         page_path.write_text(content, encoding="utf-8")
 
-    _generate_index_rst(output_dir, index.navigation)
+    _generate_index_rst(output_dir, index.navigation, pages)
 
 
 async def generate_config(
@@ -66,36 +73,74 @@ async def generate_dockerfile(
 
 def _format_page(
     page: doc_models.DocPage,
-    mermaid_image_paths: dict[str, str] | None = None,
+    mermaid_image_paths: dict[str, str] | None,
+    page_ids: set[str],
 ) -> str:
-    lines = []
+    lines: list[str] = []
 
-    title_underline = "=" * len(page.title)
+    title_underline = "=" * max(1, len(page.title))
     lines.append(title_underline)
     lines.append(page.title)
     lines.append(title_underline)
     lines.append("")
 
-    lines.append(page.summary)
-    lines.append("")
+    if page.summary:
+        lines.append(page.summary)
+        lines.append("")
 
     for block in page.blocks:
         lines.extend(rst_blocks.format_block(block, mermaid_image_paths))
         lines.append("")
 
-    if page.related:
+    bullets = [f"* :doc:`{rid}`" for rid in page.related if rid in page_ids]
+    if bullets:
         lines.append("Related Pages")
         lines.append("-" * len("Related Pages"))
         lines.append("")
-        for related_id in page.related:
-            lines.append(f"* :doc:`{related_id}`")
+        lines.extend(bullets)
         lines.append("")
 
     return "\n".join(lines)
 
 
-def _generate_index_rst(output_dir: Path, navigation: dict) -> None:
-    lines = [
+def _generate_index_rst(
+    output_dir: Path,
+    navigation: dict[str, str | dict],
+    pages: dict[str, doc_models.DocPage],
+) -> None:
+    """Emit root ``index.rst`` plus a section-index ``{group}.rst`` per group.
+
+    Files stay flat in the bundle root (named after their original
+    ``page_id``). The root toctree references group ids; each group file
+    toctrees its real children. ``sphinx-rtd-theme`` then renders a nested
+    sidebar without us moving files around.
+    """
+
+    page_set = set(pages.keys())
+    root_entries: list[str] = []
+
+    for nav_id, data in navigation.items():
+        if nav_id == "index":
+            continue
+
+        if isinstance(data, dict) and "children" in data:
+            children = [cid for cid in data["children"] if cid in page_set]
+            if not children:
+                continue
+            section_doc = _section_docname(nav_id, page_set)
+            _write_section_index(
+                output_dir=output_dir,
+                section_doc=section_doc,
+                title=str(data.get("title", _humanise(nav_id))),
+                children=children,
+            )
+            root_entries.append(section_doc)
+        else:
+            if nav_id not in page_set:
+                continue
+            root_entries.append(nav_id)
+
+    lines: list[str] = [
         "Documentation",
         "=" * len("Documentation"),
         "",
@@ -104,11 +149,45 @@ def _generate_index_rst(output_dir: Path, navigation: dict) -> None:
         "   :caption: Contents:",
         "",
     ]
-
-    for page_id in navigation:
-        lines.append(f"   {page_id}")
-
+    for entry in root_entries:
+        lines.append(f"   {entry}")
     lines.append("")
 
-    index_path = output_dir / "index.rst"
-    index_path.write_text("\n".join(lines), encoding="utf-8")
+    (output_dir / "index.rst").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _section_docname(group_slug: str, page_set: set[str]) -> str:
+    """Return a docname for a group's section index, avoiding collisions.
+
+    If the group slug already names a real leaf page, prefix to keep both.
+    """
+    if group_slug in page_set:
+        return f"_section_{group_slug}"
+    return group_slug
+
+
+def _write_section_index(
+    *,
+    output_dir: Path,
+    section_doc: str,
+    title: str,
+    children: list[str],
+) -> None:
+    bar = "=" * max(1, len(title))
+    lines: list[str] = [
+        bar,
+        title,
+        bar,
+        "",
+        ".. toctree::",
+        "   :maxdepth: 2",
+        "",
+    ]
+    for child_id in children:
+        lines.append(f"   {child_id}")
+    lines.append("")
+    (output_dir / f"{section_doc}.rst").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _humanise(slug: str) -> str:
+    return slug.replace("-", " ").replace("_", " ").title()

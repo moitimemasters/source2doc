@@ -10,19 +10,40 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinxcontrib.mermaid',
     'sphinx_togglebutton',
+    'sphinx_design',
     'myst_parser',
 ]
 
 templates_path = ['_templates']
-exclude_patterns = []
+
+# Without this, sphinx-build crawls colocated venvs / build output and
+# floods the log with "document isn't included in any toctree" warnings,
+# which become errors under -W.
+exclude_patterns = [
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
+    '.venv',
+    'venv',
+    'env',
+    'node_modules',
+    'requirements.txt',
+    'Dockerfile',
+    'README.md',
+    '_toc.md',
+    'toc.json',
+    'mermaid',
+]
 
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
 }
 
+master_doc = 'index'
+
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_static_path = []
 
 html_theme_options = {
     'navigation_depth': 4,

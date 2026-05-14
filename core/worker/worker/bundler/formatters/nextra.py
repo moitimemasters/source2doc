@@ -44,6 +44,8 @@ async def format_bundle(
     # which page_ids belong to a group and should be nested under a subdirectory.
     groups = _collect_groups(index.navigation)
 
+    page_ids = set(pages.keys())
+
     for page_id, page in pages.items():
         # If this page_id belongs to a group, place it inside the group subdirectory.
         if page_id in groups:
@@ -55,10 +57,10 @@ async def format_bundle(
             depth = max(0, len(page_path.relative_to(content_dir).parts) - 1)
             page_mermaid_paths = _rewrite_mermaid_paths(mermaid_paths, depth=depth)
         page_path.parent.mkdir(parents=True, exist_ok=True)
-        content = _format_page(page, page_mermaid_paths)
+        content = _format_page(page, page_mermaid_paths, page_ids, groups)
         page_path.write_text(content, encoding="utf-8")
 
-    _ensure_index_page(content_dir, pages)
+    _ensure_index_page(content_dir, index.navigation, pages, groups)
     _generate_group_index_pages(content_dir, index.navigation, pages, env.get_file_extension())
     _generate_meta_files(content_dir, index.navigation, pages, groups)
 
@@ -184,7 +186,9 @@ def _yaml_frontmatter(fields: dict[str, object]) -> str:
 
 def _format_page(
     page: doc_models.DocPage,
-    mermaid_image_paths: dict[str, str] | None = None,
+    mermaid_image_paths: dict[str, str] | None,
+    page_ids: set[str],
+    groups: dict[str, str],
 ) -> str:
     fm: dict[str, object] = {"title": page.title}
     if page.summary:
@@ -204,12 +208,20 @@ def _format_page(
         lines.extend(mdx_blocks.format_block(block, mermaid_image_paths))
         lines.append("")
 
-    if page.related:
+    bullets: list[str] = []
+    for related_id in page.related:
+        if related_id not in page_ids:
+            continue
+        # Page lives at /<group>/<id> when grouped, /<id> otherwise.
+        if related_id in groups:
+            href = f"/{groups[related_id]}/{related_id}"
+        else:
+            href = f"/{related_id}"
+        bullets.append(f"- [{related_id}]({href})")
+    if bullets:
         lines.append("## Related Pages")
         lines.append("")
-        for related_id in page.related:
-            # Keep relative links; in Nextra content routing they map to slugs.
-            lines.append(f"- [{related_id}](./{related_id})")
+        lines.extend(bullets)
         lines.append("")
 
     return "\n".join(lines)
@@ -217,12 +229,15 @@ def _format_page(
 
 def _ensure_index_page(
     content_dir: Path,
+    navigation: dict[str, str | dict],
     pages: dict[str, doc_models.DocPage],
+    groups: dict[str, str],
 ) -> None:
     """Ensure `content/index.mdx` exists.
 
     Without an index page, the root route may render the catch-all with an empty
-    path and result in a 404.
+    path and result in a 404. Links use the full route including the group
+    prefix when a page is nested.
     """
 
     index_path = content_dir / "index.mdx"
@@ -237,17 +252,46 @@ def _ensure_index_page(
         "",
     ]
 
-    if pages:
-        lines.append("## Pages")
+    if navigation:
+        lines.append("## Contents")
         lines.append("")
-        for page_id, page in pages.items():
-            if page_id == "index":
+        for nav_id, data in navigation.items():
+            if nav_id == "index":
                 continue
-            lines.append(f"- [{page.title}](./{page_id})")
+            if isinstance(data, dict) and "children" in data:
+                group_title = str(
+                    data.get("title", nav_id.replace("-", " ").replace("_", " ").title())
+                )
+                lines.append(f"- **{group_title}**")
+                for child_id, child_data in data["children"].items():
+                    if child_id not in pages:
+                        continue
+                    child_title = _resolve_title(child_id, child_data, pages)
+                    lines.append(f"    - [{child_title}](/{nav_id}/{child_id})")
+            else:
+                if nav_id not in pages:
+                    continue
+                title = _resolve_title(nav_id, data, pages)
+                href = f"/{groups[nav_id]}/{nav_id}" if nav_id in groups else f"/{nav_id}"
+                lines.append(f"- [{title}]({href})")
         lines.append("")
 
     index_path.write_text("\n".join(lines), encoding="utf-8")
     logger.info("nextra_index_page_created", path=str(index_path))
+
+
+def _resolve_title(
+    page_id: str,
+    nav_data: str | dict | None,
+    pages: dict[str, doc_models.DocPage],
+) -> str:
+    if page_id in pages and pages[page_id].title:
+        return pages[page_id].title
+    if isinstance(nav_data, dict):
+        return str(nav_data.get("title", page_id))
+    if isinstance(nav_data, str) and nav_data:
+        return nav_data
+    return page_id.replace("-", " ").replace("_", " ").title()
 
 
 def _generate_group_index_pages(

@@ -62,6 +62,7 @@ async def format_bundle(
 
     groups = _collect_groups(index.navigation)
     extension = env.get_file_extension()
+    page_ids = set(pages.keys())
 
     for page_id, page in pages.items():
         if page_id in groups:
@@ -73,10 +74,16 @@ async def format_bundle(
             depth = max(0, len(page_path.relative_to(output_dir).parts) - 1)
             mermaid_paths_rel = _rewrite_relative_to(mermaid_paths, depth=depth)
         page_path.parent.mkdir(parents=True, exist_ok=True)
-        page_path.write_text(_format_page(page, mermaid_paths_rel), encoding="utf-8")
+        page_path.write_text(
+            _format_page(page, mermaid_paths_rel, page_ids, groups),
+            encoding="utf-8",
+        )
 
-    _ensure_index_page(output_dir, pages, extension)
+    _ensure_index_page(output_dir, index.navigation, pages, groups, extension)
     _generate_group_index_pages(output_dir, index.navigation, pages, extension)
+
+    # .yfm config — required by @diplodoc/cli to find the bundle root.
+    (output_dir / ".yfm").write_text("allowHTML: true\n", encoding="utf-8")
 
 
 def _rewrite_relative_to(
@@ -119,13 +126,20 @@ async def generate_dockerfile(
     """
 
     dockerfile = (
-        "# Diplodoc / yfm-docs builder.\n"
-        "# Build a static site from the bundled toc.yaml.\n"
-        "FROM node:20-alpine\n"
-        "WORKDIR /docs\n"
-        "RUN npm install -g @diplodoc/cli\n"
-        "COPY . /docs\n"
-        'CMD ["yfm", "-i", "/docs", "-o", "/docs/_build"]\n'
+        "# Diplodoc YFM static site — built via @diplodoc/cli, served by nginx.\n"
+        "#\n"
+        "# The source is COPYed into the builder image (not bind-mounted) because\n"
+        "# diplodoc-cli v5 renames into a hidden .tmp_input dir, which fails over\n"
+        "# Docker Desktop's virtio-fs mounts.\n"
+        "FROM node:20-alpine AS builder\n"
+        "WORKDIR /src\n"
+        "COPY . /src/\n"
+        "RUN npm install -g @diplodoc/cli@5.39.0\n"
+        "RUN yfm build -i /src -o /out --lang en --static-content --allow-html\n"
+        "\n"
+        "FROM nginx:alpine\n"
+        "COPY --from=builder /out /usr/share/nginx/html\n"
+        "EXPOSE 80\n"
     )
     (output_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
 
@@ -137,7 +151,9 @@ async def generate_dockerfile(
 
 def _format_page(
     page: doc_models.DocPage,
-    mermaid_image_paths: dict[str, str] | None = None,
+    mermaid_image_paths: dict[str, str] | None,
+    page_ids: set[str],
+    groups: dict[str, str],
 ) -> str:
     lines: list[str] = []
 
@@ -151,11 +167,21 @@ def _format_page(
         lines.extend(_format_block(block, mermaid_image_paths))
         lines.append("")
 
-    if page.related:
+    bullets: list[str] = []
+    for related_id in page.related:
+        if related_id not in page_ids:
+            continue
+        # Diplodoc rewrites .md → .html. The leading "/" makes the link
+        # absolute relative to the site root so it works from any depth.
+        if related_id in groups:
+            href = f"/{groups[related_id]}/{related_id}.md"
+        else:
+            href = f"/{related_id}.md"
+        bullets.append(f"- [{related_id}]({href})")
+    if bullets:
         lines.append("## Related Pages")
         lines.append("")
-        for related_id in page.related:
-            lines.append(f"- [{related_id}](./{related_id}.md)")
+        lines.extend(bullets)
         lines.append("")
 
     return "\n".join(lines)
@@ -289,25 +315,40 @@ def _build_toc(
     """
 
     items: list[dict[str, tp.Any]] = []
-    if "index" not in navigation:
-        # Always surface the root index page first if it exists or is synthesised.
-        index_title = pages["index"].title if "index" in pages else "Overview"
-        items.append({"name": index_title, "href": f"index{extension}"})
+    page_set = set(pages.keys())
+
+    # Single root entry pointing at the index page (real or synthesised by
+    # ``_ensure_index_page``). Never duplicate it as a sibling group entry.
+    index_title = pages["index"].title if "index" in pages else "Overview"
+    items.append({"name": index_title, "href": f"index{extension}"})
 
     for nav_id, nav_data in navigation.items():
+        if nav_id == "index":
+            continue
+
         if isinstance(nav_data, dict) and "children" in nav_data:
+            children: dict[str, str | dict] = nav_data["children"]
+            visible = [
+                (cid, cd) for cid, cd in children.items() if cid in page_set
+            ]
+            if not visible:
+                continue
             group_title = str(nav_data.get("title", _humanise(nav_id)))
             child_items: list[dict[str, tp.Any]] = [
-                {"name": group_title, "href": f"{nav_id}/index{extension}"},
+                {
+                    "name": group_title,
+                    "href": f"{nav_id}/index{extension}",
+                },
             ]
-            children: dict[str, str | dict] = nav_data["children"]
-            for child_id, child_data in children.items():
+            for child_id, child_data in visible:
                 child_title = _resolve_title(child_id, child_data, pages)
                 child_items.append(
                     {"name": child_title, "href": f"{nav_id}/{child_id}{extension}"},
                 )
             items.append({"name": group_title, "items": child_items})
         else:
+            if nav_id not in page_set:
+                continue
             page_title = _resolve_title(nav_id, nav_data, pages)
             items.append({"name": page_title, "href": f"{nav_id}{extension}"})
 
@@ -334,22 +375,46 @@ def _humanise(slug: str) -> str:
 
 def _ensure_index_page(
     output_dir: Path,
+    navigation: dict[str, str | dict],
     pages: dict[str, doc_models.DocPage],
+    groups: dict[str, str],
     extension: str,
 ) -> None:
-    """Synthesise a root ``index.md`` if no real one was generated."""
+    """Synthesise a root ``index.md`` if no real one was generated.
+
+    Links use the full ``<group>/<page_id>{ext}`` path for grouped pages so
+    Diplodoc's link rewriter (``.md`` → ``.html``) lands on a real file.
+    """
     index_path = output_dir / f"index{extension}"
     if index_path.exists():
         return
 
     lines: list[str] = ["# Documentation", "", "Generated by source2doc bundler.", ""]
-    if pages:
-        lines.append("## Pages")
+    if navigation:
+        lines.append("## Contents")
         lines.append("")
-        for page_id, page in pages.items():
-            if page_id == "index":
+        for nav_id, data in navigation.items():
+            if nav_id == "index":
                 continue
-            lines.append(f"- [{page.title}](./{page_id}{extension})")
+            if isinstance(data, dict) and "children" in data:
+                group_title = str(data.get("title", _humanise(nav_id)))
+                lines.append(f"- **{group_title}**")
+                for child_id, child_data in data["children"].items():
+                    if child_id not in pages:
+                        continue
+                    child_title = _resolve_title(child_id, child_data, pages)
+                    lines.append(f"    - [{child_title}](./{nav_id}/{child_id}{extension})")
+            else:
+                if nav_id not in pages:
+                    continue
+                title = _resolve_title(nav_id, data, pages)
+                slug = groups.get(nav_id)
+                href = (
+                    f"./{slug}/{nav_id}{extension}"
+                    if slug
+                    else f"./{nav_id}{extension}"
+                )
+                lines.append(f"- [{title}]({href})")
         lines.append("")
 
     index_path.write_text("\n".join(lines), encoding="utf-8")

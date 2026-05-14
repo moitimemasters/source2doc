@@ -227,7 +227,11 @@ async def _format_bundle(
             await mkdocs.generate_config(
                 formatter,
                 output_dir,
-                {"navigation": index.navigation},
+                {
+                    "site_name": "Documentation",
+                    "navigation": index.navigation,
+                    "pages": pages,
+                },
             )
             await mkdocs.generate_dockerfile(formatter, output_dir)
         case "nextra":
@@ -251,6 +255,7 @@ async def _format_bundle(
         case "gfm":
             formatter = GFMFormatter()
             await gfm.format_bundle(formatter, index, pages, output_dir, mermaid_render_mode)
+            await gfm.generate_dockerfile(formatter, output_dir)
         case "yfm":
             formatter = YFMFormatter()
             await yfm.format_bundle(formatter, index, pages, output_dir, mermaid_render_mode)

@@ -122,11 +122,12 @@ def _format_cut(
     block: doc_models.CutBlock,
     mermaid_image_paths: dict[str, str] | None,
 ) -> list[str]:
-    lines = [
-        ".. dropdown:: " + block.title,
-        f"   :open: {'true' if block.default_open else 'false'}",
-        "",
-    ]
+    # sphinx-design's ``:open:`` is a flag option — present means open,
+    # absent means closed. It rejects ``:open: true|false``.
+    lines: list[str] = [".. dropdown:: " + block.title]
+    if block.default_open:
+        lines.append("   :open:")
+    lines.append("")
     for nested_block in block.blocks:
         nested_lines = format_block(nested_block, mermaid_image_paths)
         for line in nested_lines:
